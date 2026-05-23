@@ -29,13 +29,15 @@ import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
 import { useGeocoding } from '../hooks/useGeocoding'
 import type { CreatePropertyInput, Property, PropertyStatus, User } from '../types/api'
+import { readStorageValue } from '../utils/storage'
 
 const defaultCoordinates = {
   latitude: -22.9068,
   longitude: -43.1729,
 }
 
-const LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
+const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
+const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
 
 type ListingType = 'sale' | 'rent'
 type PostalCodeStatus = 'idle' | 'loading' | 'found' | 'not-found' | 'error'
@@ -381,7 +383,7 @@ function buildGeocodingQueries(form: PropertyFormState) {
 
 function readLocalAdminProperties() {
   try {
-    const raw = localStorage.getItem(LOCAL_ADMIN_PROPERTIES_KEY)
+    const raw = readStorageValue(LOCAL_ADMIN_PROPERTIES_KEY, LEGACY_LOCAL_ADMIN_PROPERTIES_KEY)
     if (!raw) return []
     return JSON.parse(raw) as Property[]
   } catch {

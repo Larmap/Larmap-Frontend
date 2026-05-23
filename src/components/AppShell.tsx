@@ -71,11 +71,11 @@ export function AppShell() {
                   <img
                     aria-hidden="true"
                     className="brand-logo__icon"
-                    src="/assets/icon-smartmap.png"
+                    src="/assets/icon-larmap.png"
                     alt=""
                   />
                   <span className="brand-logo__name">
-                    <span className="brand-logo__name-smart">Smart</span>
+                    <span className="brand-logo__name-lar">Lar</span>
                     <span className="brand-logo__name-map">Map</span>
                   </span>
                 </strong>

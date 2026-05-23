@@ -1,11 +1,13 @@
 import type { CreateLeadInput, Lead } from '../types/api'
+import { readStorageValue } from './storage'
 
-const LOCAL_LEADS_KEY = 'smartmap.localLeads'
+const LOCAL_LEADS_KEY = 'larmap.localLeads'
+const LEGACY_LOCAL_LEADS_KEY = 'smartmap.localLeads'
 const MAX_LOCAL_LEADS = 120
 
 function safeRead(): Lead[] {
   try {
-    const raw = localStorage.getItem(LOCAL_LEADS_KEY)
+    const raw = readStorageValue(LOCAL_LEADS_KEY, LEGACY_LOCAL_LEADS_KEY)
     if (!raw) return []
     return JSON.parse(raw) as Lead[]
   } catch {

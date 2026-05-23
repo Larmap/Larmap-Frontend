@@ -1,4 +1,7 @@
-const STORAGE_KEY = 'smartmap.recentlyViewed'
+import { readStorageValue } from '../utils/storage'
+
+const STORAGE_KEY = 'larmap.recentlyViewed'
+const LEGACY_STORAGE_KEY = 'smartmap.recentlyViewed'
 const MAX_ITEMS = 20
 
 export interface RecentlyViewedItem {
@@ -12,7 +15,7 @@ export interface RecentlyViewedItem {
 
 function readItems(): RecentlyViewedItem[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = readStorageValue(STORAGE_KEY, LEGACY_STORAGE_KEY)
     if (!raw) return []
     return JSON.parse(raw) as RecentlyViewedItem[]
   } catch {

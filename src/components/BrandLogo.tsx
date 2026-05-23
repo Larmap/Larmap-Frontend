@@ -16,11 +16,11 @@ export function BrandLogo({ className = '', compact = false, to }: BrandLogoProp
       <img
         aria-hidden="true"
         className="brand-logo__icon"
-        src="/assets/icon-smartmap.png"
+        src="/assets/icon-larmap.png"
         alt=""
       />
       <span className="brand-logo__name">
-        <span className="brand-logo__name-smart">Smart</span>
+        <span className="brand-logo__name-lar">Lar</span>
         <span className="brand-logo__name-map">Map</span>
       </span>
     </>
@@ -28,14 +28,14 @@ export function BrandLogo({ className = '', compact = false, to }: BrandLogoProp
 
   if (to) {
     return (
-      <Link aria-label="SmartMap" className={classes} to={to}>
+      <Link aria-label="LarMap" className={classes} to={to}>
         {content}
       </Link>
     )
   }
 
   return (
-    <div aria-label="SmartMap" className={classes}>
+    <div aria-label="LarMap" className={classes}>
       {content}
     </div>
   )

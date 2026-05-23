@@ -24,11 +24,11 @@ import {
 import { divIcon } from 'leaflet'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { ApiError, leadsApi, propertiesApi } from '../api/client'
 import type { GeocodingResult } from '../api/geocoding'
-import { BrandLogo } from '../components/BrandLogo'
 import { CityAutocomplete } from '../components/CityAutocomplete'
+import { PublicNavbar } from '../components/PublicNavbar'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
 import { getFavorites, toggleFavorite } from '../hooks/useFavorites'
@@ -36,13 +36,15 @@ import { useGeocoding } from '../hooks/useGeocoding'
 import type { CreateLeadInput, Property, PropertyStatus } from '../types/api'
 import { canUsePublicFavorites } from '../utils/userAccess'
 import { buildLocalLead, upsertLocalLead } from '../utils/localLeads'
+import { readStorageValue } from '../utils/storage'
 
 const defaultCoordinates = {
   latitude: -22.9068,
   longitude: -43.1729,
 }
 
-const LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
+const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
+const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
 
 const defaultCenter: [number, number] = [
   defaultCoordinates.latitude,
@@ -179,7 +181,7 @@ function getWhatsAppHref(property: Property) {
   const phone = cleanPhone(property.contactWhatsApp || property.contactPhone)
   if (!phone) return ''
 
-  const message = encodeURIComponent(`Olá! Tenho interesse no imóvel "${property.title}" pelo SmartMap.`)
+  const message = encodeURIComponent(`Olá! Tenho interesse no imóvel "${property.title}" pelo LarMap.`)
   return `https://wa.me/${phone}?text=${message}`
 }
 
@@ -296,7 +298,7 @@ function getPropertyType(property: Property, searchableText: string): PropertyTy
 
 function readLocalAdminProperties() {
   try {
-    const raw = localStorage.getItem(LOCAL_ADMIN_PROPERTIES_KEY)
+    const raw = readStorageValue(LOCAL_ADMIN_PROPERTIES_KEY, LEGACY_LOCAL_ADMIN_PROPERTIES_KEY)
     if (!raw) return []
     return JSON.parse(raw) as Property[]
   } catch {
@@ -689,21 +691,6 @@ export function PublicMapPage() {
   ]
     .filter(Boolean)
     .join(' ')
-  const locationSearchParams = new URLSearchParams(location.search)
-
-  function isNavItemActive(section: 'rent' | 'sale' | 'news' | 'map') {
-    if (location.pathname !== '/mapa' && location.pathname !== '/novidades') return false
-
-    const listingType = locationSearchParams.get('type')
-    const searchQuery = locationSearchParams.get('q')?.trim()
-
-    if (section === 'news') return location.pathname === '/novidades'
-    if (section === 'rent') return location.pathname === '/mapa' && listingType === 'aluguel'
-    if (section === 'sale') return location.pathname === '/mapa' && (listingType === 'compra' || listingType === 'venda')
-    if (section === 'map') return location.pathname === '/mapa' && !listingType && !searchQuery
-    return false
-  }
-
   function handleFavoriteToggle(result: PropertyResult) {
     const nextFavorites = toggleFavorite({
       city: result.city,
@@ -1138,46 +1125,7 @@ export function PublicMapPage() {
 
   return (
     <main className={pageClasses}>
-      <header className="home-header">
-        <div className="home-header__inner">
-          <BrandLogo to="/" />
-          <nav className="home-nav" aria-label="Navegação principal">
-            <Link
-              aria-current={isNavItemActive('rent') ? 'page' : undefined}
-              className={isNavItemActive('rent') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
-              to="/mapa?type=aluguel"
-            >
-              Aluguel
-            </Link>
-            <Link
-              aria-current={isNavItemActive('sale') ? 'page' : undefined}
-              className={isNavItemActive('sale') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
-              to="/mapa?type=compra"
-            >
-              Compra
-            </Link>
-            <Link
-              aria-current={isNavItemActive('news') ? 'page' : undefined}
-              className={isNavItemActive('news') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
-              to="/novidades"
-            >
-              Novidades
-            </Link>
-            <Link
-              aria-current={isNavItemActive('map') ? 'page' : undefined}
-              className={isNavItemActive('map') ? 'home-nav__link home-nav__link--active home-nav__link--featured' : 'home-nav__link home-nav__link--featured'}
-              to="/mapa"
-            >
-              Mapa interativo
-            </Link>
-            {showFavoritesButton ? (
-              <Link to="/favoritos" className="home-nav__icon" title="Favoritos">
-                <Heart size={18} />
-              </Link>
-            ) : null}
-          </nav>
-        </div>
-      </header>
+      <PublicNavbar />
 
       <section className="public-map-layout">
         <aside className="property-results-panel">

@@ -19,9 +19,16 @@ import type {
   User,
 } from '../types/api'
 
-export const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api'
-).replace(/\/+$/, '')
+function normalizeApiBaseUrl(value: string) {
+  const baseUrl = value.replace(/\/+$/, '')
+  return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(
+  import.meta.env.VITE_API_URL ??
+  import.meta.env.VITE_API_BASE_URL ??
+  '/api',
+)
 
 export class ApiError extends Error {
   status: number

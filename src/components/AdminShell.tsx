@@ -18,6 +18,7 @@ import { useAuth } from '../context/AuthContext'
 import { useAdminData } from '../hooks/useAdminData'
 import type { Lead } from '../types/api'
 import { updateLocalLeads } from '../utils/localLeads'
+import { BrandLogo } from './BrandLogo'
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -104,7 +105,7 @@ export function AdminShell() {
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <Link className="admin-logo" to="/admin/dashboard">
-          <img src="/assets/smartmap-logo.png" alt="SmartMap" />
+          <BrandLogo className="admin-logo__brand" />
         </Link>
 
         <nav className="admin-nav" aria-label="Navegação administrativa">
@@ -144,7 +145,7 @@ export function AdminShell() {
         <header className="admin-topbar">
           <div className="admin-account">
             <span>{accountLabel}</span>
-            <strong>{user?.name ?? company?.name ?? 'SmartMap'}</strong>
+            <strong>{user?.name ?? company?.name ?? 'LarMap'}</strong>
           </div>
 
           <div className="admin-topbar__actions">

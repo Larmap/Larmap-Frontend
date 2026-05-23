@@ -1,6 +1,8 @@
 import type { PropertyStatus } from '../types/api'
+import { readStorageValue } from '../utils/storage'
 
-const STORAGE_KEY = 'smartmap.favorites'
+const STORAGE_KEY = 'larmap.favorites'
+const LEGACY_STORAGE_KEY = 'smartmap.favorites'
 const MAX_ITEMS = 80
 
 export interface FavoriteItem {
@@ -17,7 +19,7 @@ export interface FavoriteItem {
 
 function readItems(): FavoriteItem[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = readStorageValue(STORAGE_KEY, LEGACY_STORAGE_KEY)
     if (!raw) return []
     return JSON.parse(raw) as FavoriteItem[]
   } catch {

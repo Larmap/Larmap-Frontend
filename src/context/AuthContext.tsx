@@ -1,10 +1,14 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { ApiError, authApi, companyApi } from '../api/client'
 import type { Company, LoginData, LoginInput, RegisterCompanyInput, UpdateCompanyInput, User } from '../types/api'
+import { readStorageValue, removeStorageValue } from '../utils/storage'
 
-const TOKEN_STORAGE_KEY = 'smartmap.authToken'
-const COMPANY_STORAGE_KEY = 'smartmap.company'
-const USER_STORAGE_KEY = 'smartmap.user'
+const TOKEN_STORAGE_KEY = 'larmap.authToken'
+const COMPANY_STORAGE_KEY = 'larmap.company'
+const USER_STORAGE_KEY = 'larmap.user'
+const LEGACY_TOKEN_STORAGE_KEY = 'smartmap.authToken'
+const LEGACY_COMPANY_STORAGE_KEY = 'smartmap.company'
+const LEGACY_USER_STORAGE_KEY = 'smartmap.user'
 
 interface AuthContextValue {
   token: string | null
@@ -21,25 +25,25 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 function readStoredCompany(): Company | null {
-  const stored = localStorage.getItem(COMPANY_STORAGE_KEY)
+  const stored = readStorageValue(COMPANY_STORAGE_KEY, LEGACY_COMPANY_STORAGE_KEY)
   if (!stored) return null
 
   try {
     return JSON.parse(stored) as Company
   } catch {
-    localStorage.removeItem(COMPANY_STORAGE_KEY)
+    removeStorageValue(COMPANY_STORAGE_KEY, LEGACY_COMPANY_STORAGE_KEY)
     return null
   }
 }
 
 function readStoredUser(): User | null {
-  const stored = localStorage.getItem(USER_STORAGE_KEY)
+  const stored = readStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
   if (!stored) return null
 
   try {
     return JSON.parse(stored) as User
   } catch {
-    localStorage.removeItem(USER_STORAGE_KEY)
+    removeStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
     return null
   }
 }
@@ -49,7 +53,7 @@ function getAdminHomePath(user: User | null) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_STORAGE_KEY))
+  const [token, setToken] = useState(() => readStorageValue(TOKEN_STORAGE_KEY, LEGACY_TOKEN_STORAGE_KEY))
   const [company, setCompany] = useState<Company | null>(() => readStoredCompany())
   const [user, setUser] = useState<User | null>(() => readStoredUser())
 
@@ -60,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.user) {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user))
     } else {
-      localStorage.removeItem(USER_STORAGE_KEY)
+      removeStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
     }
     setToken(data.token)
     setCompany(data.company)
@@ -126,9 +130,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
-    localStorage.removeItem(TOKEN_STORAGE_KEY)
-    localStorage.removeItem(COMPANY_STORAGE_KEY)
-    localStorage.removeItem(USER_STORAGE_KEY)
+    removeStorageValue(TOKEN_STORAGE_KEY, LEGACY_TOKEN_STORAGE_KEY)
+    removeStorageValue(COMPANY_STORAGE_KEY, LEGACY_COMPANY_STORAGE_KEY)
+    removeStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
     setToken(null)
     setCompany(null)
     setUser(null)

@@ -1,13 +1,11 @@
-import { Heart, MapPin, Trash2 } from 'lucide-react'
+import { MapPin, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { propertiesApi } from '../api/client'
-import { BrandLogo } from '../components/BrandLogo'
+import { PublicNavbar } from '../components/PublicNavbar'
 import { StatusBadge } from '../components/StatusBadge'
-import { useAuth } from '../context/AuthContext'
 import { getFavorites, removeFavorite, type FavoriteItem } from '../hooks/useFavorites'
 import type { Property } from '../types/api'
-import { canUsePublicFavorites } from '../utils/userAccess'
 
 function getPropertyNeighborhood(property: Property) {
   return property.neighborhood || property.bairro || property.district || property.city || property.cidade || ''
@@ -42,11 +40,8 @@ function toFavoriteItem(property: Property, fallback?: FavoriteItem): FavoriteIt
 }
 
 export function FavoritesPage() {
-  const { isAuthenticated, user } = useAuth()
-  const location = useLocation()
   const [favorites, setFavorites] = useState<FavoriteItem[]>(() => getFavorites())
   const [properties, setProperties] = useState<Property[]>([])
-  const showFavoritesButton = canUsePublicFavorites(isAuthenticated, user)
 
   useEffect(() => {
     let ignore = false
@@ -75,52 +70,13 @@ export function FavoritesPage() {
     })
   }, [favorites, properties])
 
-  function isNavItemActive(section: 'rent' | 'sale' | 'news' | 'map' | 'favorites') {
-    if (section === 'favorites') return location.pathname === '/favoritos'
-    if (section === 'news') return location.pathname === '/novidades'
-    if (section === 'map') return location.pathname === '/mapa'
-    return false
-  }
-
   function handleRemove(id: string) {
     setFavorites(removeFavorite(id))
   }
 
   return (
     <main className="favorites-page">
-      <header className="home-header">
-        <div className="home-header__inner">
-          <BrandLogo to="/" />
-          <nav className="home-nav" aria-label="Navegação principal">
-            <Link className="home-nav__link" to="/mapa?type=aluguel">Aluguel</Link>
-            <Link className="home-nav__link" to="/mapa?type=compra">Compra</Link>
-            <Link
-              aria-current={isNavItemActive('news') ? 'page' : undefined}
-              className={isNavItemActive('news') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
-              to="/novidades"
-            >
-              Novidades
-            </Link>
-            <Link
-              aria-current={isNavItemActive('map') ? 'page' : undefined}
-              className={isNavItemActive('map') ? 'home-nav__link home-nav__link--active home-nav__link--featured' : 'home-nav__link home-nav__link--featured'}
-              to="/mapa"
-            >
-              Mapa interativo
-            </Link>
-            {showFavoritesButton ? (
-              <Link
-                aria-current={isNavItemActive('favorites') ? 'page' : undefined}
-                className={isNavItemActive('favorites') ? 'home-nav__icon home-nav__icon--active' : 'home-nav__icon'}
-                title="Favoritos"
-                to="/favoritos"
-              >
-                <Heart size={18} />
-              </Link>
-            ) : null}
-          </nav>
-        </div>
-      </header>
+      <PublicNavbar />
 
       <section className="favorites-content">
         <div className="favorites-heading">

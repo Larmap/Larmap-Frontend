@@ -102,7 +102,7 @@ export function DashboardPage() {
       <section className="page-heading dashboard-heading">
         <div>
           <span className="eyebrow">Painel da imobiliária</span>
-          <h1>{company?.name ?? 'SmartMap'}</h1>
+          <h1>{company?.name ?? 'LarMap'}</h1>
         </div>
         <div className={`api-state api-state--${apiState}`}>
           <Server size={17} />

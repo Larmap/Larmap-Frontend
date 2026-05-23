@@ -1,4 +1,4 @@
-# SmartMap Backend - Proximas Entregas Necessarias
+# LarMap Backend - Proximas Entregas Necessarias
 
 Este documento e uma lista pratica do que o backend precisa implementar agora para substituir os fallbacks locais do frontend e deixar a plataforma pronta para producao.
 
@@ -174,7 +174,7 @@ Resposta sugerida:
       {
         "id": "media-id",
         "type": "image",
-        "url": "https://cdn.smartmap.com/properties/property-id/foto.jpg",
+        "url": "https://cdn.larmap.com/properties/property-id/foto.jpg",
         "fileName": "foto.jpg",
         "mimeType": "image/jpeg",
         "size": 245000,
@@ -374,8 +374,8 @@ Toda rota administrativa deve exigir token e validar:
 
 Quando o backend estiver completo, remover gradualmente:
 
-1. Fallback local de imoveis em `smartmap.admin.localProperties`.
-2. Fallback local de leads em `smartmap.localLeads`.
+1. Fallback local de imoveis em `larmap.admin.localProperties`.
+2. Fallback local de leads em `larmap.localLeads`.
 3. Fallback de rotas alternativas antigas se a API padronizar os endpoints recomendados.
 4. Salvamento local de empresa quando `/companies/me` falha.
 
@@ -408,4 +408,3 @@ Quando o backend estiver completo, remover gradualmente:
 - [ ] Dados sao isolados por imobiliaria.
 - [ ] Dashboard e performance carregam sem fallback local.
 - [ ] `.env` nao esta versionado.
-

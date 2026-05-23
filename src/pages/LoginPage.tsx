@@ -58,7 +58,7 @@ export function LoginPage() {
               <Building2 size={17} />
               Login
             </span>
-            <h2>Entrar no SmartMap</h2>
+            <h2>Entrar no LarMap</h2>
           </div>
 
           <label>

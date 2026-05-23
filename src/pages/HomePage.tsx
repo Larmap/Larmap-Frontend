@@ -1,17 +1,18 @@
-import { Heart, MapPin, Search } from 'lucide-react'
+import { MapPin, Search } from 'lucide-react'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { propertiesApi } from '../api/client'
 import { BrandLogo } from '../components/BrandLogo'
+import { PublicNavbar } from '../components/PublicNavbar'
 import { PropertyCarousel } from '../components/PropertyCarousel'
-import { useAuth } from '../context/AuthContext'
 import { getRecentlyViewed, addRecentlyViewed } from '../hooks/useRecentlyViewed'
 import type { Property } from '../types/api'
-import { canUsePublicFavorites } from '../utils/userAccess'
+import { readStorageValue } from '../utils/storage'
 
 const homeMapCenter: [number, number] = [-22.9068, -43.1729]
-const LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
+const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
+const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
 
 const previewDots = [
   { center: [-22.9519, -43.2105] as [number, number], color: '#57b44b' },
@@ -23,7 +24,7 @@ const previewDots = [
 
 function readLocalAdminProperties() {
   try {
-    const raw = localStorage.getItem(LOCAL_ADMIN_PROPERTIES_KEY)
+    const raw = readStorageValue(LOCAL_ADMIN_PROPERTIES_KEY, LEGACY_LOCAL_ADMIN_PROPERTIES_KEY)
     if (!raw) return []
     return JSON.parse(raw) as Property[]
   } catch {
@@ -45,27 +46,9 @@ function getPropertyCity(property: Property) {
 }
 
 export function HomePage() {
-  const { isAuthenticated, user } = useAuth()
   const [locationQuery, setLocationQuery] = useState('')
   const [properties, setProperties] = useState<Property[]>([])
   const navigate = useNavigate()
-  const location = useLocation()
-  const showFavoritesButton = canUsePublicFavorites(isAuthenticated, user)
-
-  function isNavItemActive(section: 'rent' | 'sale' | 'news' | 'map') {
-    if (section === 'news') return location.pathname === '/novidades'
-    if (section === 'map') return location.pathname === '/mapa'
-    if (location.pathname !== '/mapa' && location.pathname !== '/novidades') return false
-
-    const searchParams = new URLSearchParams(location.search)
-    const listingType = searchParams.get('type')
-    const searchQuery = searchParams.get('q')?.trim()
-
-    if (section === 'rent') return listingType === 'aluguel'
-    if (section === 'sale') return listingType === 'compra' || listingType === 'venda'
-    if (section === 'news') return !listingType && !searchQuery
-    return !listingType && Boolean(searchQuery)
-  }
 
   useEffect(() => {
     let ignore = false
@@ -120,47 +103,7 @@ export function HomePage() {
 
   return (
     <main className="home-page">
-      {/* ─── NAVBAR ─── */}
-      <header className="home-header">
-        <div className="home-header__inner">
-          <BrandLogo to="/" />
-          <nav className="home-nav" aria-label="Navegação principal">
-            <Link
-              aria-current={isNavItemActive('rent') ? 'page' : undefined}
-              className={isNavItemActive('rent') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
-              to="/mapa?type=aluguel"
-            >
-              Aluguel
-            </Link>
-            <Link
-              aria-current={isNavItemActive('sale') ? 'page' : undefined}
-              className={isNavItemActive('sale') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
-              to="/mapa?type=compra"
-            >
-              Compra
-            </Link>
-            <Link
-              aria-current={isNavItemActive('news') ? 'page' : undefined}
-              className={isNavItemActive('news') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
-              to="/novidades"
-            >
-              Novidades
-            </Link>
-            <Link
-              aria-current={isNavItemActive('map') ? 'page' : undefined}
-              className={isNavItemActive('map') ? 'home-nav__link home-nav__link--active home-nav__link--featured' : 'home-nav__link home-nav__link--featured'}
-              to="/mapa"
-            >
-              Mapa interativo
-            </Link>
-            {showFavoritesButton ? (
-              <Link to="/favoritos" className="home-nav__icon" title="Favoritos">
-                <Heart size={18} />
-              </Link>
-            ) : null}
-          </nav>
-        </div>
-      </header>
+      <PublicNavbar />
 
       {/* ─── HERO ─── */}
       <section className="home-hero">
@@ -252,7 +195,7 @@ export function HomePage() {
       <footer className="home-footer">
         <div className="home-footer__inner">
           <BrandLogo />
-          <span>© {new Date().getFullYear()} SmartMap. Todos os direitos reservados.</span>
+          <span>© {new Date().getFullYear()} LarMap. Todos os direitos reservados.</span>
         </div>
       </footer>
     </main>

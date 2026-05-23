@@ -1,15 +1,17 @@
-# SmartMap Frontend - Guia de Integracao para Backend
+# LarMap Frontend - Guia de Integracao para Backend
 
-Este documento descreve como o frontend SmartMap conversa com a API hoje, quais contratos ele espera e quais pontos ainda usam fallback local enquanto o backend nao esta completo.
+Este documento descreve como o frontend LarMap conversa com a API hoje, quais contratos ele espera e quais pontos ainda usam fallback local enquanto o backend nao esta completo.
 
 ## Stack e Execucao
 
 - Frontend: React 19, TypeScript, Vite e React Router.
 - Mapas: Leaflet e React Leaflet.
 - Cliente HTTP: `fetch` centralizado em `src/api/client.ts`.
-- Variavel de ambiente: `VITE_API_BASE_URL`.
-- Em desenvolvimento, `.env` usa `VITE_API_BASE_URL=/api`.
-- O `vite.config.ts` faz proxy de `/api` para `https://smartmap-backend.onrender.com`.
+- Variavel de ambiente: `VITE_API_URL`.
+- Em desenvolvimento e producao, `.env` usa `VITE_API_URL=https://smartmap-backend.onrender.com`.
+- O cliente HTTP normaliza essa base para chamar os endpoints em `/api`.
+- `VITE_API_BASE_URL` ainda e aceito como fallback de compatibilidade.
+- Se nenhuma variavel for definida, o cliente cai para `/api`; o `vite.config.ts` mantem proxy de `/api` para `https://smartmap-backend.onrender.com` em desenvolvimento.
 - `.env` nao deve ir para o GitHub. Use `.env.example` como base.
 
 ## Formato de Resposta Esperado
@@ -70,13 +72,15 @@ Se `user.role === "agent"`, o usuario autenticado e enviado para `/admin/correto
 
 O backend nao precisa manipular estes valores diretamente, mas eles explicam alguns fallbacks atuais:
 
-- `smartmap.authToken`: token JWT retornado no login.
-- `smartmap.company`: dados da imobiliaria autenticada.
-- `smartmap.user`: usuario autenticado.
-- `smartmap.localLeads`: fallback local para leads quando a API ainda nao responde.
-- `smartmap.admin.localProperties`: fallback local para imoveis cadastrados quando a listagem da API falha.
-- `smartmap.recentlyViewed`: ultimos imoveis vistos na Home.
-- `smartmap.favorites`: favoritos do usuario publico.
+- `larmap.authToken`: token JWT retornado no login.
+- `larmap.company`: dados da imobiliaria autenticada.
+- `larmap.user`: usuario autenticado.
+- `larmap.localLeads`: fallback local para leads quando a API ainda nao responde.
+- `larmap.admin.localProperties`: fallback local para imoveis cadastrados quando a listagem da API falha.
+- `larmap.recentlyViewed`: ultimos imoveis vistos na Home.
+- `larmap.favorites`: favoritos do usuario publico.
+
+Chaves legadas `smartmap.*` sao migradas automaticamente para `larmap.*` quando lidas pelo frontend.
 
 ## Endpoints Consumidos
 
@@ -526,10 +530,9 @@ Resposta:
 
 Estes fallbacks existem para manter a interface funcionando enquanto o backend ainda nao cobre tudo:
 
-- Imoveis criados podem ser guardados em `smartmap.admin.localProperties`.
-- Leads publicos podem ser guardados em `smartmap.localLeads`.
+- Imoveis criados podem ser guardados em `larmap.admin.localProperties`.
+- Leads publicos podem ser guardados em `larmap.localLeads`.
 - Atualizacao de empresa pode ser salva localmente se os endpoints retornarem 404, 405 ou 501.
 - Atualizacao de leads pode ser refletida visualmente mesmo se o backend ainda nao sincronizar.
 
 Quando o backend estiver completo, esses fallbacks podem ser removidos gradualmente.
-

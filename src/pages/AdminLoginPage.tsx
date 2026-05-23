@@ -2,6 +2,7 @@ import { KeyRound, LogIn } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { getErrorMessage } from '../api/errors'
+import { BrandLogo } from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
 
 interface RouteState {
@@ -47,9 +48,7 @@ export function AdminLoginPage() {
   return (
     <main className="admin-login-page">
       <section className="admin-login__intro">
-        <Link className="admin-login__logo" to="/">
-          <img src="/assets/smartmap-logo.png" alt="SmartMap" />
-        </Link>
+        <BrandLogo className="admin-login__logo brand--auth" to="/" />
 
         <div className="admin-login__copy">
           <span className="eyebrow">Área profissional</span>
@@ -69,7 +68,7 @@ export function AdminLoginPage() {
                 <KeyRound size={17} />
                 Login administrativo
               </span>
-              <h2>Entrar no SmartMap</h2>
+              <h2>Entrar no LarMap</h2>
             </div>
           </div>
 
