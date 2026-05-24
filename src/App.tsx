@@ -29,6 +29,8 @@ export function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/favoritos" element={<FavoritesPage />} />
+          <Route path="/aluguel" element={<PublicMapPage />} />
+          <Route path="/compra" element={<PublicMapPage />} />
           <Route path="/novidades" element={<PublicMapPage />} />
           <Route path="/mapa" element={<PublicMapPage />} />
 

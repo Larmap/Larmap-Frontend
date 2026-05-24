@@ -14,15 +14,23 @@ export function PublicNavbar() {
   function isNavItemActive(section: PublicNavSection) {
     if (section === 'favorites') return location.pathname === '/favoritos'
     if (section === 'news') return location.pathname === '/novidades'
-    if (location.pathname !== '/mapa') return false
-
     const searchParams = new URLSearchParams(location.search)
     const listingType = searchParams.get('type')
     const searchQuery = searchParams.get('q')?.trim()
 
-    if (section === 'rent') return listingType === 'aluguel'
-    if (section === 'sale') return listingType === 'compra' || listingType === 'venda'
-    if (section === 'map') return !listingType && !searchQuery
+    if (section === 'rent') {
+      return (
+        location.pathname === '/aluguel' ||
+        (location.pathname === '/mapa' && listingType === 'aluguel')
+      )
+    }
+    if (section === 'sale') {
+      return (
+        location.pathname === '/compra' ||
+        (location.pathname === '/mapa' && (listingType === 'compra' || listingType === 'venda'))
+      )
+    }
+    if (section === 'map') return location.pathname === '/mapa' && !listingType && !searchQuery
     return false
   }
 
@@ -34,14 +42,14 @@ export function PublicNavbar() {
           <Link
             aria-current={isNavItemActive('rent') ? 'page' : undefined}
             className={isNavItemActive('rent') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
-            to="/mapa?type=aluguel"
+            to="/aluguel"
           >
             Aluguel
           </Link>
           <Link
             aria-current={isNavItemActive('sale') ? 'page' : undefined}
             className={isNavItemActive('sale') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
-            to="/mapa?type=compra"
+            to="/compra"
           >
             Compra
           </Link>
@@ -54,7 +62,11 @@ export function PublicNavbar() {
           </Link>
           <Link
             aria-current={isNavItemActive('map') ? 'page' : undefined}
-            className={isNavItemActive('map') ? 'home-nav__link home-nav__link--active home-nav__link--featured' : 'home-nav__link home-nav__link--featured'}
+            className={
+              isNavItemActive('map')
+                ? 'home-nav__link home-nav__link--active home-nav__link--featured'
+                : 'home-nav__link home-nav__link--featured'
+            }
             to="/mapa"
           >
             Mapa interativo

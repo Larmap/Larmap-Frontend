@@ -28,9 +28,15 @@ import { useLocation, useSearchParams } from 'react-router-dom'
 import { ApiError, leadsApi, propertiesApi } from '../api/client'
 import type { GeocodingResult } from '../api/geocoding'
 import { CityAutocomplete } from '../components/CityAutocomplete'
+import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
+import {
+  publicCleanMapTileLayerUrl,
+  publicDetailedMapTileLayerUrl,
+  publicMapAttribution,
+} from '../constants/publicMap'
 import { getFavorites, toggleFavorite } from '../hooks/useFavorites'
 import { useGeocoding } from '../hooks/useGeocoding'
 import type { CreateLeadInput, Property, PropertyStatus } from '../types/api'
@@ -151,10 +157,6 @@ const bedroomOptions = [1, 2, 3, 4]
 const bathroomOptions = [1, 2, 3]
 const parkingOptions = [0, 1, 2, 3]
 
-const cartoAttribution =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-const cleanMapTileLayerUrl = 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png'
-const detailedMapTileLayerUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
 const emptyLeadForm: LeadFormState = {
   email: '',
   name: '',
@@ -590,6 +592,12 @@ function getListingIntent(value: string | null): ListingIntent {
   return null
 }
 
+function getListingIntentFromPath(pathname: string): ListingIntent {
+  if (pathname === '/aluguel') return 'rent'
+  if (pathname === '/compra') return 'sale'
+  return null
+}
+
 function matchesListingIntent(result: PropertyResult, listingIntent: ListingIntent) {
   if (!listingIntent) return true
   return result.transactionType === listingIntent
@@ -635,9 +643,12 @@ export function PublicMapPage() {
   const { isAuthenticated, token, user } = useAuth()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
+  const routeListingIntent = getListingIntentFromPath(location.pathname)
+  const queryListingIntent = getListingIntent(searchParams.get('type'))
+  const listingIntent = routeListingIntent ?? queryListingIntent
   const initialInteractiveMap =
     location.pathname === '/mapa' &&
-    !getListingIntent(searchParams.get('type')) &&
+    !listingIntent &&
     !searchParams.get('q')?.trim()
   const [properties, setProperties] = useState<Property[]>([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
@@ -656,7 +667,7 @@ export function PublicMapPage() {
     zoom: 12,
     version: 0,
   })
-  const [mapDetailsVisible, setMapDetailsVisible] = useState(() => initialInteractiveMap)
+  const [mapDetailsVisible, setMapDetailsVisible] = useState(true)
   const [filtersPanelCollapsed, setFiltersPanelCollapsed] = useState(() => initialInteractiveMap)
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(
     () => new Set(getFavorites().map((favorite) => favorite.id)),
@@ -671,7 +682,6 @@ export function PublicMapPage() {
   const { error: geocodingError, loading: geocoding, search: geocodeLocation } = useGeocoding()
   const showFavoritesButton = canUsePublicFavorites(isAuthenticated, user)
   const pageMode: PageMode = location.pathname === '/novidades' ? 'news' : 'map'
-  const listingIntent = getListingIntent(searchParams.get('type'))
   const listingLabel =
     listingIntent === 'rent'
       ? 'Aluguel'
@@ -681,9 +691,15 @@ export function PublicMapPage() {
           ? 'Busca'
           : 'Mapa interativo'
   const pageTheme =
-    pageMode === 'news' ? 'news' : listingIntent === 'rent' ? 'rent' : listingIntent === 'sale' ? 'sale' : 'map'
+    pageMode === 'news'
+      ? 'news'
+      : listingIntent === 'rent'
+        ? 'rent'
+        : listingIntent === 'sale'
+          ? 'sale'
+          : 'map'
   const isInteractiveMap = pageTheme === 'map'
-  const mapTileLayerUrl = isInteractiveMap && mapDetailsVisible ? detailedMapTileLayerUrl : cleanMapTileLayerUrl
+  const mapTileLayerUrl = mapDetailsVisible ? publicDetailedMapTileLayerUrl : publicCleanMapTileLayerUrl
   const pageClasses = [
     'public-map-page',
     `public-map-page--${pageTheme}`,
@@ -944,11 +960,11 @@ export function PublicMapPage() {
   const pageTitle = pageMode === 'news' ? 'Novidades' : listingLabel
 
   useEffect(() => {
-    if (!isInteractiveMap) return
-
     setMapDetailsVisible(true)
-    setFiltersPanelCollapsed(true)
-  }, [isInteractiveMap])
+    if (isInteractiveMap) {
+      setFiltersPanelCollapsed(true)
+    }
+  }, [isInteractiveMap, pageTheme])
   useEffect(() => {
     if (!selectedPropertyId) return
     const selectedStillVisible = filteredResults.some(
@@ -1433,7 +1449,7 @@ export function PublicMapPage() {
           </section>
         </aside>
 
-        <section className="public-map-panel" aria-label="Mapa de imóveis">
+        <PublicMapFrame className="public-map-panel" ariaLabel="Mapa de imóveis">
           {isInteractiveMap && filtersPanelCollapsed ? (
             <button
               className="map-filter-restore"
@@ -1468,7 +1484,7 @@ export function PublicMapPage() {
           </div>
 
           <MapContainer center={defaultCenter} className="public-smart-map" scrollWheelZoom zoom={12}>
-            <TileLayer attribution={cartoAttribution} url={mapTileLayerUrl} />
+            <TileLayer attribution={publicMapAttribution} url={mapTileLayerUrl} />
             <MapViewport view={mapView} />
 
             {filteredResults.map((result) => {
@@ -1517,7 +1533,7 @@ export function PublicMapPage() {
             <Home size={14} />
             <span>{filteredResults.length} imóveis</span>
           </div>
-        </section>
+        </PublicMapFrame>
       </section>
 
       {leadProperty ? (

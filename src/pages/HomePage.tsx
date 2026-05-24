@@ -4,8 +4,10 @@ import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet'
 import { Link, useNavigate } from 'react-router-dom'
 import { propertiesApi } from '../api/client'
 import { BrandLogo } from '../components/BrandLogo'
+import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { PropertyCarousel } from '../components/PropertyCarousel'
+import { publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
 import { getRecentlyViewed, addRecentlyViewed } from '../hooks/useRecentlyViewed'
 import type { Property } from '../types/api'
 import { readStorageValue } from '../utils/storage'
@@ -133,10 +135,10 @@ export function HomePage() {
             </form>
 
             <div className="home-hero__tags">
-              <Link to="/mapa?type=aluguel" className="home-tag">
+              <Link to="/aluguel" className="home-tag">
                 <MapPin size={14} /> Aluguel
               </Link>
-              <Link to="/mapa?type=compra" className="home-tag">
+              <Link to="/compra" className="home-tag">
                 <MapPin size={14} /> Compra
               </Link>
               <Link to="/mapa" className="home-tag">
@@ -145,9 +147,8 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="home-hero__map">
+          <PublicMapFrame className="home-hero__map" element="div">
             <MapContainer
-              attributionControl={false}
               center={homeMapCenter}
               className="home-hero__map-container"
               dragging
@@ -156,19 +157,19 @@ export function HomePage() {
               zoom={12}
               zoomControl
             >
-              <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
-              {previewDots.map((dot, i) => (
+              <TileLayer attribution={publicMapAttribution} url={publicDetailedMapTileLayerUrl} />
+              {previewDots.map((dot) => (
                 <CircleMarker
                   center={dot.center}
                   fillColor={dot.color}
                   fillOpacity={0.88}
-                  key={i}
+                  key={`${dot.center[0]}-${dot.center[1]}`}
                   pathOptions={{ color: '#ffffff', opacity: 1, weight: 2 }}
                   radius={6}
                 />
               ))}
             </MapContainer>
-          </div>
+          </PublicMapFrame>
         </div>
       </section>
 
