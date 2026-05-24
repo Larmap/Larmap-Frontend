@@ -4,15 +4,24 @@ import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet'
 import { Link, useNavigate } from 'react-router-dom'
 import { propertiesApi } from '../api/client'
 import { BrandLogo } from '../components/BrandLogo'
+import { PoiCategoryControl } from '../components/map/PoiCategoryControl'
+import { PoiLayer } from '../components/map/PoiLayer'
 import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { PropertyCarousel } from '../components/PropertyCarousel'
+import { allPoiCategories } from '../constants/pois'
 import { publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
+import { useNearbyPois } from '../hooks/useNearbyPois'
 import { getRecentlyViewed, addRecentlyViewed } from '../hooks/useRecentlyViewed'
 import type { Property } from '../types/api'
+import type { PoiCategory } from '../types/pois'
 import { readStorageValue } from '../utils/storage'
 
 const homeMapCenter: [number, number] = [-22.9068, -43.1729]
+const homePoiCenter = {
+  latitude: homeMapCenter[0],
+  longitude: homeMapCenter[1],
+}
 const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
 const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
 
@@ -50,7 +59,15 @@ function getPropertyCity(property: Property) {
 export function HomePage() {
   const [locationQuery, setLocationQuery] = useState('')
   const [properties, setProperties] = useState<Property[]>([])
+  const [poiCategories, setPoiCategories] = useState<PoiCategory[]>(allPoiCategories)
   const navigate = useNavigate()
+  const nearbyPois = useNearbyPois({
+    categories: poiCategories,
+    center: homePoiCenter,
+    enabled: true,
+    limit: 110,
+    radiusMeters: 2200,
+  })
 
   useEffect(() => {
     let ignore = false
@@ -148,6 +165,16 @@ export function HomePage() {
           </div>
 
           <PublicMapFrame className="home-hero__map" element="div">
+            <PoiCategoryControl
+              categories={poiCategories}
+              className="home-poi-control"
+              compact
+              empty={nearbyPois.empty}
+              error={nearbyPois.error}
+              loading={nearbyPois.loading}
+              onCategoriesChange={setPoiCategories}
+              onRefresh={nearbyPois.refresh}
+            />
             <MapContainer
               center={homeMapCenter}
               className="home-hero__map-container"
@@ -158,6 +185,7 @@ export function HomePage() {
               zoomControl
             >
               <TileLayer attribution={publicMapAttribution} url={publicDetailedMapTileLayerUrl} />
+              <PoiLayer pois={nearbyPois.pois} />
               {previewDots.map((dot) => (
                 <CircleMarker
                   center={dot.center}

@@ -15,6 +15,40 @@ Categorias iniciais desejadas:
 - Instituicoes de ensino
 - Pracas, parques e areas de lazer
 
+## Estrategia atual de densidade e UX (2026-05-24)
+
+A camada `PoiLayer` passou a aplicar filtragem leve antes de renderizar os marcadores, sem bibliotecas externas:
+
+- Filtragem por grade baseada no viewport (bounds), com limite por celula.
+- Limite total de POIs por zoom para evitar manchas densas.
+- Deduplicacao por coordenadas (precisao por zoom) + nome normalizado.
+- Prioridade de selecao: POIs com nome valido, depois categorias principais e entao menor distancia.
+- Regras mobile mais restritivas (matchMedia max-width 900px).
+- POIs em pane com z-index menor que os imoveis.
+- Marcadores menores e popups mais discretos.
+- Controle "Locais visiveis" mostra quantidade, loading e erro de forma sutil.
+
+Prioridade de categorias (maior -> menor):
+
+- market
+- health
+- education
+- food
+- leisure
+- fuel
+
+Limites por zoom (desktop):
+
+- Zoom <= 12: grid 6x5, max 2 por celula, max 48 no total, apenas POIs com nome.
+- Zoom 13-14: grid 8x6, max 3 por celula, max 80 no total.
+- Zoom >= 15: grid 10x8, max 4 por celula, max 120 no total.
+
+Limites por zoom (mobile, max-width 900px):
+
+- Zoom <= 12: grid 4x4, max 1 por celula, max 24 no total, apenas POIs com nome.
+- Zoom 13-14: grid 5x5, max 2 por celula, max 40 no total.
+- Zoom >= 15: grid 6x6, max 3 por celula, max 65 no total.
+
 ## Decisao de escopo para POIs gerais
 
 Antes de qualquer implementacao, fica definida a seguinte regra de escopo:

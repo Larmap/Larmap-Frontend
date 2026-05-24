@@ -4,11 +4,10 @@ Este documento registra a padronizacao visual aplicada aos mapas publicos do Lar
 
 ## Layout de referencia
 
-O layout de referencia e o Mapa Interativo quando o controle "Locais visiveis" esta ativo.
+O layout de referencia e o Mapa Interativo no estilo detalhado padronizado.
 
 No codigo atual, esse estado era definido em `src/pages/PublicMapPage.tsx` por:
 
-- `mapDetailsVisible === true`
 - tile layer Carto Voyager: `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png`
 - moldura visual de `.public-map-panel`
 - mapa Leaflet com classe `.public-smart-map`
@@ -18,6 +17,8 @@ No codigo atual, esse estado era definido em `src/pages/PublicMapPage.tsx` por:
 - controles Leaflet ajustados por `.public-smart-map .leaflet-control-*`
 
 Antes da padronizacao, as paginas de Aluguel, Compra e Novidades usavam o tile limpo (`light_nolabels`) porque nao exibiam o controle "Locais visiveis". A Home usava outro tile (`light_all`) e uma moldura propria (`.home-hero__map`).
+
+Depois da implementacao dos POIs, o controle "Locais visiveis" nao altera mais tile, layout ou aparencia. Ele serve somente para ligar/desligar a camada de POIs gerais no Mapa Interativo.
 
 ## Paginas afetadas
 
@@ -60,7 +61,7 @@ Alterados:
 - `src/pages/PublicMapPage.tsx`
   - O mapa passou a usar `PublicMapFrame`.
   - O tile detalhado passou a ser o padrao para Mapa, Aluguel, Compra e Novidades.
-  - O tile limpo continua disponivel somente onde o controle "Mapa limpo" existe.
+- O tile detalhado permanece fixo; o controle "Locais visiveis" nao escolhe mais tile.
   - A finalidade tambem pode ser inferida por rota (`/aluguel`, `/compra`), alem das query strings antigas.
 
 - `src/components/PublicNavbar.tsx`
@@ -78,12 +79,12 @@ Alterados:
 
 ## Regra de POIs preservada
 
-POIs gerais ainda nao foram implementados.
+POIs gerais foram implementados como camada separada de marcadores.
 
 A regra definida para a futura implementacao e:
 
-- Home pode exibir POIs gerais.
-- `/mapa` pode exibir POIs gerais quando nao estiver representando Aluguel/Compra.
+- Home exibe POIs gerais por padrao.
+- `/mapa` exibe POIs gerais por padrao quando nao estiver representando Aluguel/Compra.
 - `/aluguel` nao deve exibir POIs gerais.
 - `/compra` nao deve exibir POIs gerais.
 - `/novidades` nao deve exibir POIs gerais.
@@ -105,7 +106,7 @@ Desktop:
 
 - [ ] Home (`/`) carrega mapa com tile detalhado, moldura padrao e marcadores de preview.
 - [ ] Mapa Interativo (`/mapa`) carrega com tile detalhado por padrao.
-- [ ] Mapa Interativo ainda permite alternar para "Mapa limpo".
+- [ ] Mapa Interativo mantem o tile detalhado ao ligar/desligar "Locais visiveis".
 - [ ] Aluguel (`/aluguel`) carrega com layout visual padrao e filtra imoveis de aluguel.
 - [ ] Compra (`/compra`) carrega com layout visual padrao e filtra imoveis de compra/venda.
 - [ ] Novidades (`/novidades`) carrega com layout visual padrao e mantem filtro de novidades.

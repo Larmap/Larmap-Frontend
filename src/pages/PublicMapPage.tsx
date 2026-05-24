@@ -22,24 +22,25 @@ import {
   X,
 } from 'lucide-react'
 import { divIcon } from 'leaflet'
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { ApiError, leadsApi, propertiesApi } from '../api/client'
 import type { GeocodingResult } from '../api/geocoding'
 import { CityAutocomplete } from '../components/CityAutocomplete'
+import { PoiCategoryControl } from '../components/map/PoiCategoryControl'
+import { PoiLayer } from '../components/map/PoiLayer'
 import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
-import {
-  publicCleanMapTileLayerUrl,
-  publicDetailedMapTileLayerUrl,
-  publicMapAttribution,
-} from '../constants/publicMap'
+import { allPoiCategories } from '../constants/pois'
+import { publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
 import { getFavorites, toggleFavorite } from '../hooks/useFavorites'
 import { useGeocoding } from '../hooks/useGeocoding'
+import { useNearbyPois } from '../hooks/useNearbyPois'
 import type { CreateLeadInput, Property, PropertyStatus } from '../types/api'
+import type { PoiCategory } from '../types/pois'
 import { canUsePublicFavorites } from '../utils/userAccess'
 import { buildLocalLead, upsertLocalLead } from '../utils/localLeads'
 import { readStorageValue } from '../utils/storage'
@@ -98,6 +99,11 @@ interface MapViewState {
   center: [number, number]
   zoom: number
   version: number
+}
+
+interface PoiSearchCenter {
+  latitude: number
+  longitude: number
 }
 
 interface PropertyResult {
@@ -617,6 +623,44 @@ function MapViewport({ view }: { view: MapViewState }) {
   return null
 }
 
+function PoiMapCenterTracker({
+  enabled,
+  onCenterChange,
+}: {
+  enabled: boolean
+  onCenterChange: (center: PoiSearchCenter) => void
+}) {
+  const map = useMapEvents({
+    moveend() {
+      if (!enabled) return
+      const center = map.getCenter()
+      onCenterChange({
+        latitude: center.lat,
+        longitude: center.lng,
+      })
+    },
+    zoomend() {
+      if (!enabled) return
+      const center = map.getCenter()
+      onCenterChange({
+        latitude: center.lat,
+        longitude: center.lng,
+      })
+    },
+  })
+
+  useEffect(() => {
+    if (!enabled) return
+    const center = map.getCenter()
+    onCenterChange({
+      latitude: center.lat,
+      longitude: center.lng,
+    })
+  }, [enabled, map, onCenterChange])
+
+  return null
+}
+
 function getMarkerIcon(result: PropertyResult, isSelected: boolean) {
   const markerClasses = [
     'property-map-marker',
@@ -667,7 +711,13 @@ export function PublicMapPage() {
     zoom: 12,
     version: 0,
   })
-  const [mapDetailsVisible, setMapDetailsVisible] = useState(true)
+  const [poisVisible, setPoisVisible] = useState(true)
+  const [poiCategories, setPoiCategories] = useState<PoiCategory[]>(allPoiCategories)
+  const [poiCenter, setPoiCenter] = useState<PoiSearchCenter>({
+    latitude: defaultCenter[0],
+    longitude: defaultCenter[1],
+  })
+  const [visiblePoiCount, setVisiblePoiCount] = useState(0)
   const [filtersPanelCollapsed, setFiltersPanelCollapsed] = useState(() => initialInteractiveMap)
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(
     () => new Set(getFavorites().map((favorite) => favorite.id)),
@@ -699,7 +749,22 @@ export function PublicMapPage() {
           ? 'sale'
           : 'map'
   const isInteractiveMap = pageTheme === 'map'
-  const mapTileLayerUrl = mapDetailsVisible ? publicDetailedMapTileLayerUrl : publicCleanMapTileLayerUrl
+  const shouldUsePois = location.pathname === '/mapa' && !listingIntent
+  const shouldSearchPois = shouldUsePois && poisVisible
+  const nearbyPois = useNearbyPois({
+    categories: poiCategories,
+    center: poiCenter,
+    enabled: shouldSearchPois,
+    limit: 140,
+    radiusMeters: 2000,
+  })
+  const poiStatusLabel = shouldSearchPois
+    ? nearbyPois.loading
+      ? 'carregando'
+      : nearbyPois.error
+        ? 'indisponivel'
+        : ''
+    : ''
   const pageClasses = [
     'public-map-page',
     `public-map-page--${pageTheme}`,
@@ -707,6 +772,21 @@ export function PublicMapPage() {
   ]
     .filter(Boolean)
     .join(' ')
+  const handlePoiCenterChange = useCallback((center: PoiSearchCenter) => {
+    setPoiCenter((current) => {
+      if (
+        Math.abs(current.latitude - center.latitude) < 0.0001 &&
+        Math.abs(current.longitude - center.longitude) < 0.0001
+      ) {
+        return current
+      }
+
+      return center
+    })
+  }, [])
+  const handlePoiVisibleCountChange = useCallback((count: number) => {
+    setVisiblePoiCount((current) => (current === count ? current : count))
+  }, [])
   function handleFavoriteToggle(result: PropertyResult) {
     const nextFavorites = toggleFavorite({
       city: result.city,
@@ -960,11 +1040,14 @@ export function PublicMapPage() {
   const pageTitle = pageMode === 'news' ? 'Novidades' : listingLabel
 
   useEffect(() => {
-    setMapDetailsVisible(true)
+    if (shouldUsePois) {
+      setPoisVisible(true)
+    }
+
     if (isInteractiveMap) {
       setFiltersPanelCollapsed(true)
     }
-  }, [isInteractiveMap, pageTheme])
+  }, [isInteractiveMap, pageTheme, shouldUsePois])
   useEffect(() => {
     if (!selectedPropertyId) return
     const selectedStillVisible = filteredResults.some(
@@ -1186,23 +1269,48 @@ export function PublicMapPage() {
               </button>
             </div>
 
-            {isInteractiveMap ? (
+            {shouldUsePois ? (
               <div className="map-filter-group">
                 <span className="map-filter-label">
                   <Layers size={15} />
-                  Informações do mapa
+                  Pontos de interesse
                 </span>
                 <button
-                  aria-pressed={mapDetailsVisible}
-                  className={mapDetailsVisible ? 'map-detail-toggle map-detail-toggle--active' : 'map-detail-toggle'}
-                  onClick={() => setMapDetailsVisible((current) => !current)}
+                  aria-pressed={poisVisible}
+                  className={poisVisible ? 'map-detail-toggle map-detail-toggle--active' : 'map-detail-toggle'}
+                  onClick={() => setPoisVisible((current) => !current)}
                   type="button"
                 >
                   <span className="map-detail-toggle__switch" aria-hidden="true">
                     <span />
                   </span>
-                  <span>{mapDetailsVisible ? 'Locais visíveis' : 'Mapa limpo'}</span>
+                  <span className="map-detail-toggle__label">
+                    <span>{poisVisible ? 'Locais visiveis' : 'Locais ocultos'}</span>
+                    {poisVisible ? (
+                      <span className="map-detail-toggle__count">({visiblePoiCount})</span>
+                    ) : null}
+                    {poiStatusLabel ? (
+                      <span
+                        className={
+                          nearbyPois.error
+                            ? 'map-detail-toggle__status map-detail-toggle__status--error'
+                            : 'map-detail-toggle__status'
+                        }
+                      >
+                        {poiStatusLabel}
+                      </span>
+                    ) : null}
+                  </span>
                 </button>
+                <PoiCategoryControl
+                  categories={poiCategories}
+                  disabled={!poisVisible}
+                  empty={nearbyPois.empty}
+                  error={nearbyPois.error}
+                  loading={nearbyPois.loading}
+                  onCategoriesChange={setPoiCategories}
+                  onRefresh={nearbyPois.refresh}
+                />
               </div>
             ) : null}
 
@@ -1484,8 +1592,13 @@ export function PublicMapPage() {
           </div>
 
           <MapContainer center={defaultCenter} className="public-smart-map" scrollWheelZoom zoom={12}>
-            <TileLayer attribution={publicMapAttribution} url={mapTileLayerUrl} />
+            <TileLayer attribution={publicMapAttribution} url={publicDetailedMapTileLayerUrl} />
             <MapViewport view={mapView} />
+            <PoiMapCenterTracker enabled={shouldUsePois} onCenterChange={handlePoiCenterChange} />
+            <PoiLayer
+              onVisibleCountChange={handlePoiVisibleCountChange}
+              pois={shouldSearchPois ? nearbyPois.pois : []}
+            />
 
             {filteredResults.map((result) => {
               const { property } = result
