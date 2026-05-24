@@ -12,13 +12,22 @@ export interface Poi {
   distanceMeters?: number
 }
 
-export interface PoiSearchParams {
+export interface PoiSearchCenter {
+  latitude: number
+  longitude: number
+}
+
+export interface PoiSearchBounds {
+  south: number
+  west: number
+  north: number
+  east: number
+}
+
+export interface PoiBoundsSearchParams {
+  bounds: PoiSearchBounds
   categories: PoiCategory[]
-  center: {
-    latitude: number
-    longitude: number
-  }
-  radiusMeters: number
+  center: PoiSearchCenter
   limit?: number
 }
 

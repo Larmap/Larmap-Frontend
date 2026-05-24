@@ -1,5 +1,5 @@
 import { divIcon, type DivIcon, type LatLngBounds } from 'leaflet'
-import { Fuel, GraduationCap, Hospital, Store, Trees, Utensils } from 'lucide-react'
+import { Fuel, GraduationCap, Hospital, ShoppingBasket, Trees, Utensils } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Marker, Pane, Popup, useMap, useMapEvents } from 'react-leaflet'
@@ -12,22 +12,22 @@ const MOBILE_MEDIA_QUERY = '(max-width: 900px)'
 
 const POI_ICON_SVGS: Record<PoiCategory, string> = {
   market: renderToStaticMarkup(
-    <Store aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+    <ShoppingBasket aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
   fuel: renderToStaticMarkup(
-    <Fuel aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+    <Fuel aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
   health: renderToStaticMarkup(
-    <Hospital aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+    <Hospital aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
   food: renderToStaticMarkup(
-    <Utensils aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+    <Utensils aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
   education: renderToStaticMarkup(
-    <GraduationCap aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+    <GraduationCap aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
   leisure: renderToStaticMarkup(
-    <Trees aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+    <Trees aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
 }
 
@@ -60,50 +60,50 @@ const POI_DENSITY_PRESETS: Array<{
   {
     maxZoom: 15,
     desktop: {
-      grid: { rows: 5, cols: 6 },
-      maxPerCell: 2,
-      maxTotal: 40,
-      requireName: true,
-      dedupePrecision: 4,
+      grid: { rows: 8, cols: 10 },
+      maxPerCell: 3,
+      maxTotal: 80,
+      requireName: false,
+      dedupePrecision: 5,
     },
     mobile: {
-      grid: { rows: 4, cols: 4 },
-      maxPerCell: 1,
-      maxTotal: 24,
-      requireName: true,
-      dedupePrecision: 4,
+      grid: { rows: 7, cols: 7 },
+      maxPerCell: 2,
+      maxTotal: 70,
+      requireName: false,
+      dedupePrecision: 5,
     },
   },
   {
     maxZoom: 16,
     desktop: {
-      grid: { rows: 6, cols: 7 },
-      maxPerCell: 2,
-      maxTotal: 45,
+      grid: { rows: 10, cols: 12 },
+      maxPerCell: 3,
+      maxTotal: 100,
       requireName: false,
-      dedupePrecision: 4,
+      dedupePrecision: 5,
     },
     mobile: {
-      grid: { rows: 5, cols: 5 },
-      maxPerCell: 2,
-      maxTotal: 30,
+      grid: { rows: 8, cols: 8 },
+      maxPerCell: 3,
+      maxTotal: 90,
       requireName: false,
-      dedupePrecision: 4,
+      dedupePrecision: 5,
     },
   },
   {
     maxZoom: Number.POSITIVE_INFINITY,
     desktop: {
-      grid: { rows: 7, cols: 8 },
+      grid: { rows: 12, cols: 14 },
       maxPerCell: 3,
-      maxTotal: 50,
+      maxTotal: 120,
       requireName: false,
       dedupePrecision: 5,
     },
     mobile: {
-      grid: { rows: 6, cols: 6 },
-      maxPerCell: 2,
-      maxTotal: 34,
+      grid: { rows: 9, cols: 9 },
+      maxPerCell: 3,
+      maxTotal: 100,
       requireName: false,
       dedupePrecision: 5,
     },
@@ -111,8 +111,16 @@ const POI_DENSITY_PRESETS: Array<{
 ]
 
 const POI_HOME_LIMITS = {
-  desktop: { maxPerCell: 1, maxTotal: 24 },
-  mobile: { maxPerCell: 1, maxTotal: 18 },
+  desktop: {
+    grid: { rows: 8, cols: 10 },
+    maxPerCell: 3,
+    maxTotal: 40,
+  },
+  mobile: {
+    grid: { rows: 7, cols: 7 },
+    maxPerCell: 3,
+    maxTotal: 40,
+  },
 }
 
 function getPoiIcon(category: PoiCategory) {
@@ -126,9 +134,9 @@ function getPoiIcon(category: PoiCategory) {
         ${POI_ICON_SVGS[category]}
       </div>
     `,
-    iconAnchor: [11, 11],
-    iconSize: [22, 22],
-    popupAnchor: [0, -10],
+    iconAnchor: [13, 13],
+    iconSize: [26, 26],
+    popupAnchor: [0, -12],
   })
 
   poiIconCache.set(category, icon)
@@ -179,9 +187,11 @@ function applyDensityMode(
   const limits = isMobile ? POI_HOME_LIMITS.mobile : POI_HOME_LIMITS.desktop
   return {
     ...config,
-    maxPerCell: Math.min(config.maxPerCell, limits.maxPerCell),
-    maxTotal: Math.min(config.maxTotal, limits.maxTotal),
-    requireName: true,
+    grid: limits.grid,
+    maxPerCell: limits.maxPerCell,
+    maxTotal: limits.maxTotal,
+    requireName: false,
+    dedupePrecision: 5,
   }
 }
 
@@ -198,6 +208,31 @@ function getPoiRenderConfig(
 
 function roundCoordinate(value: number, precision: number) {
   return value.toFixed(precision)
+}
+
+function pickPoisFromCell(bucket: Poi[], maxPerCell: number) {
+  const picked: Poi[] = []
+  const pickedIds = new Set<string>()
+  const pickedCategories = new Set<PoiCategory>()
+
+  for (const poi of bucket) {
+    if (picked.length >= maxPerCell) break
+    if (pickedCategories.has(poi.category)) continue
+
+    picked.push(poi)
+    pickedIds.add(poi.id)
+    pickedCategories.add(poi.category)
+  }
+
+  for (const poi of bucket) {
+    if (picked.length >= maxPerCell) break
+    if (pickedIds.has(poi.id)) continue
+
+    picked.push(poi)
+    pickedIds.add(poi.id)
+  }
+
+  return picked
 }
 
 function filterPoisByGrid(pois: Poi[], config: PoiRenderConfig, bounds: LatLngBounds | null) {
@@ -259,14 +294,22 @@ function filterPoisByGrid(pois: Poi[], config: PoiRenderConfig, bounds: LatLngBo
     }
   }
 
-  const clustered: Poi[] = []
-  for (const bucket of buckets.values()) {
+  const bucketGroups = Array.from(buckets.values())
+  for (const bucket of bucketGroups) {
     bucket.sort(comparePois)
-    clustered.push(...bucket.slice(0, config.maxPerCell))
   }
 
-  clustered.sort(comparePois)
-  return clustered.slice(0, config.maxTotal)
+  const cellSelections = bucketGroups.map((bucket) => pickPoisFromCell(bucket, config.maxPerCell))
+  const distributed: Poi[] = []
+  for (let index = 0; index < config.maxPerCell && distributed.length < config.maxTotal; index += 1) {
+    const layer = cellSelections
+      .map((selection) => selection[index])
+      .filter((poi): poi is Poi => Boolean(poi))
+
+    distributed.push(...layer.slice(0, config.maxTotal - distributed.length))
+  }
+
+  return distributed
 }
 
 function getInitialMobileState() {
@@ -336,7 +379,7 @@ export function PoiLayer({ pois, densityMode = 'map', onVisibleCountChange }: Po
   if (!visiblePois.length) return null
 
   return (
-    <Pane className="poi-pane" name={POI_PANE_NAME} style={{ zIndex: 420 }}>
+    <Pane className="poi-pane" name={POI_PANE_NAME} style={{ zIndex: 390 }}>
       {visiblePois.map((poi) => {
         const distanceLabel = formatDistance(poi.distanceMeters)
         const trimmedName = poi.name.trim()

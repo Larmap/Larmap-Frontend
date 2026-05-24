@@ -9,19 +9,15 @@ import { PoiViewportTracker, type PoiViewport } from '../components/map/PoiViewp
 import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { PropertyCarousel } from '../components/PropertyCarousel'
+import { allPoiCategories } from '../constants/pois'
 import { publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
 import { useNearbyPois } from '../hooks/useNearbyPois'
 import { getRecentlyViewed, addRecentlyViewed } from '../hooks/useRecentlyViewed'
 import type { Property } from '../types/api'
-import type { PoiCategory } from '../types/pois'
 import { readStorageValue } from '../utils/storage'
 
 const homeMapCenter: [number, number] = [-22.9068, -43.1729]
-const homePoiCenter = {
-  latitude: homeMapCenter[0],
-  longitude: homeMapCenter[1],
-}
-const HOME_POI_CATEGORIES: PoiCategory[] = ['market', 'health', 'education', 'leisure']
+const HOME_POI_CATEGORIES = allPoiCategories
 const HOME_MIN_POI_ZOOM = 15
 const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
 const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
@@ -57,28 +53,21 @@ function getPropertyCity(property: Property) {
   return property.city || property.cidade || ''
 }
 
-function getPoiRadiusMeters(zoom: number) {
-  if (!Number.isFinite(zoom)) return 800
-  if (zoom < HOME_MIN_POI_ZOOM) return null
-  if (zoom < 16) return 800
-  if (zoom < 17) return 600
-  return 400
-}
-
 export function HomePage() {
   const [locationQuery, setLocationQuery] = useState('')
   const [properties, setProperties] = useState<Property[]>([])
   const [homePoiZoom, setHomePoiZoom] = useState(HOME_MIN_POI_ZOOM)
+  const [homePoiViewport, setHomePoiViewport] = useState<PoiViewport | null>(null)
   const navigate = useNavigate()
-  const homePoiRadiusMeters = getPoiRadiusMeters(homePoiZoom)
   const isHomePoiZoomReady = homePoiZoom >= HOME_MIN_POI_ZOOM
   const nearbyPois = useNearbyPois({
+    bounds: homePoiViewport?.bounds ?? null,
     categories: HOME_POI_CATEGORIES,
-    center: homePoiCenter,
-    enabled: isHomePoiZoomReady,
-    limit: 45,
-    radiusMeters: homePoiRadiusMeters ?? 800,
+    center: homePoiViewport?.center ?? null,
     debounceMs: 1200,
+    enabled: isHomePoiZoomReady,
+    limit: 220,
+    zoom: homePoiZoom,
   })
   const showHomePoiHint = !isHomePoiZoomReady
   const showHomePoiError = isHomePoiZoomReady && Boolean(nearbyPois.error)
@@ -136,6 +125,7 @@ export function HomePage() {
 
   const handleHomeViewportChange = useCallback((viewport: PoiViewport) => {
     setHomePoiZoom((current) => (Math.abs(current - viewport.zoom) < 0.05 ? current : viewport.zoom))
+    setHomePoiViewport(viewport)
   }, [])
 
   return (

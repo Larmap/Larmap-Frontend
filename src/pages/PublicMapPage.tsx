@@ -104,11 +104,6 @@ interface MapViewState {
   version: number
 }
 
-interface PoiSearchCenter {
-  latitude: number
-  longitude: number
-}
-
 interface PropertyResult {
   property: Property
   propertyType: PropertyTypeFilter | null
@@ -626,14 +621,6 @@ function MapViewport({ view }: { view: MapViewState }) {
   return null
 }
 
-function getPoiRadiusMeters(zoom: number) {
-  if (!Number.isFinite(zoom)) return 800
-  if (zoom < MIN_POI_ZOOM) return null
-  if (zoom < 16) return 800
-  if (zoom < 17) return 600
-  return 400
-}
-
 function getMarkerIcon(result: PropertyResult, isSelected: boolean) {
   const markerClasses = [
     'property-map-marker',
@@ -688,11 +675,8 @@ export function PublicMapPage() {
   })
   const [poisVisible, setPoisVisible] = useState(true)
   const [poiCategories, setPoiCategories] = useState<PoiCategory[]>(allPoiCategories)
-  const [poiCenter, setPoiCenter] = useState<PoiSearchCenter>({
-    latitude: defaultCenter[0],
-    longitude: defaultCenter[1],
-  })
   const [poiZoom, setPoiZoom] = useState(initialMapZoom)
+  const [poiViewport, setPoiViewport] = useState<PoiViewport | null>(null)
   const [visiblePoiCount, setVisiblePoiCount] = useState(0)
   const [filtersPanelCollapsed, setFiltersPanelCollapsed] = useState(() => initialInteractiveMap)
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(
@@ -726,16 +710,16 @@ export function PublicMapPage() {
           : 'map'
   const isInteractiveMap = pageTheme === 'map'
   const shouldUsePois = location.pathname === '/mapa' && !listingIntent
-  const poiRadiusMeters = getPoiRadiusMeters(poiZoom)
   const isPoiZoomReady = poiZoom >= MIN_POI_ZOOM
   const shouldSearchPois = shouldUsePois && poisVisible && isPoiZoomReady
   const nearbyPois = useNearbyPois({
+    bounds: poiViewport?.bounds ?? null,
     categories: poiCategories,
-    center: poiCenter,
-    enabled: shouldSearchPois,
-    limit: 60,
-    radiusMeters: poiRadiusMeters ?? 800,
+    center: poiViewport?.center ?? null,
     debounceMs: 1200,
+    enabled: shouldSearchPois,
+    limit: 260,
+    zoom: poiZoom,
   })
   const showPoiZoomHint = shouldUsePois && poisVisible && !isPoiZoomReady
   const showPoiErrorHint = shouldUsePois && poisVisible && isPoiZoomReady && Boolean(nearbyPois.error)
@@ -757,16 +741,7 @@ export function PublicMapPage() {
     .join(' ')
   const handlePoiViewportChange = useCallback((viewport: PoiViewport) => {
     setPoiZoom((current) => (Math.abs(current - viewport.zoom) < 0.05 ? current : viewport.zoom))
-    setPoiCenter((current) => {
-      if (
-        Math.abs(current.latitude - viewport.center.latitude) < 0.0001 &&
-        Math.abs(current.longitude - viewport.center.longitude) < 0.0001
-      ) {
-        return current
-      }
-
-      return viewport.center
-    })
+    setPoiViewport(viewport)
   }, [])
   const handlePoiVisibleCountChange = useCallback((count: number) => {
     setVisiblePoiCount((current) => (current === count ? current : count))

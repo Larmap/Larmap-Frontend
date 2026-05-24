@@ -1,10 +1,10 @@
 import { poiCategoryLabels } from '../constants/pois'
-import type { Poi, PoiCategory, PoiSearchParams } from '../types/pois'
+import type { Poi, PoiBoundsSearchParams, PoiCategory, PoiSearchBounds } from '../types/pois'
 
 const OVERPASS_INTERPRETER_URL = 'https://overpass-api.de/api/interpreter'
-const DEFAULT_POI_LIMIT = 90
-const MIN_RADIUS_METERS = 250
-const MAX_RADIUS_METERS = 1200
+const DEFAULT_POI_LIMIT = 180
+const MAX_BOUNDS_LAT_SPAN = 0.12
+const MAX_BOUNDS_LNG_SPAN = 0.12
 
 export class PoiApiError extends Error {
   status: number
@@ -58,24 +58,33 @@ const categoryQueryParts: Record<PoiCategory, string[]> = {
   ],
 }
 
-function clampRadius(radiusMeters: number) {
-  if (!Number.isFinite(radiusMeters)) return 2000
-  return Math.min(MAX_RADIUS_METERS, Math.max(MIN_RADIUS_METERS, Math.round(radiusMeters)))
-}
-
 function normalizeCoordinate(value: number) {
   return Number(value.toFixed(4))
 }
 
-function buildOverpassQuery(params: PoiSearchParams) {
-  const radiusMeters = clampRadius(params.radiusMeters)
-  const latitude = normalizeCoordinate(params.center.latitude)
-  const longitude = normalizeCoordinate(params.center.longitude)
+function normalizeBounds(bounds: PoiSearchBounds) {
+  return {
+    east: normalizeCoordinate(bounds.east),
+    north: normalizeCoordinate(bounds.north),
+    south: normalizeCoordinate(bounds.south),
+    west: normalizeCoordinate(bounds.west),
+  }
+}
+
+function isBoundsTooLarge(bounds: PoiSearchBounds) {
+  const latitudeSpan = Math.abs(bounds.north - bounds.south)
+  const longitudeSpan = Math.abs(bounds.east - bounds.west)
+  return latitudeSpan > MAX_BOUNDS_LAT_SPAN || longitudeSpan > MAX_BOUNDS_LNG_SPAN
+}
+
+function buildOverpassQuery(params: PoiBoundsSearchParams) {
+  const bounds = normalizeBounds(params.bounds)
+  const bbox = `${bounds.south},${bounds.west},${bounds.north},${bounds.east}`
   const queryParts = params.categories.flatMap((category) => categoryQueryParts[category] ?? [])
 
   return `[out:json][timeout:15];
 (
-${queryParts.map((part) => `  ${part}(around:${radiusMeters},${latitude},${longitude});`).join('\n')}
+${queryParts.map((part) => `  ${part}(${bbox});`).join('\n')}
 );
 out center;`
 }
@@ -174,7 +183,7 @@ function getPoiName(tags: Record<string, string>, category: PoiCategory) {
   )
 }
 
-function normalizeOverpassElements(payload: OverpassResponse, params: PoiSearchParams): Poi[] {
+function normalizeOverpassElements(payload: OverpassResponse, params: PoiBoundsSearchParams): Poi[] {
   const allowedCategories = new Set(params.categories)
   const seen = new Set<string>()
   const elements = Array.isArray(payload.elements) ? payload.elements : []
@@ -209,11 +218,12 @@ function normalizeOverpassElements(payload: OverpassResponse, params: PoiSearchP
     .slice(0, params.limit ?? DEFAULT_POI_LIMIT)
 }
 
-export async function searchPoisByCenter(
-  params: PoiSearchParams,
+export async function searchPoisByBounds(
+  params: PoiBoundsSearchParams,
   signal?: AbortSignal,
 ): Promise<Poi[]> {
   if (!params.categories.length) return []
+  if (isBoundsTooLarge(params.bounds)) return []
 
   const query = buildOverpassQuery(params)
   const body = new URLSearchParams({ data: query })

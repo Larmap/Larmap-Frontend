@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { PoiApiError, searchPoisByCenter } from '../api/pois'
-import type { Poi, PoiCategory, PoiSearchState } from '../types/pois'
+import { PoiApiError, searchPoisByBounds } from '../api/pois'
+import type { Poi, PoiCategory, PoiSearchBounds, PoiSearchCenter, PoiSearchState } from '../types/pois'
 
 const CACHE_TTL_MS = 10 * 60 * 1000
 const DEFAULT_DEBOUNCE_MS = 1200
@@ -10,14 +10,12 @@ let cooldownUntil = 0
 
 interface UseNearbyPoisInput {
   enabled: boolean
-  center: {
-    latitude: number
-    longitude: number
-  } | null
-  radiusMeters: number
+  bounds: PoiSearchBounds | null
+  center: PoiSearchCenter | null
   categories: PoiCategory[]
   debounceMs?: number
   limit?: number
+  zoom: number
 }
 
 interface PoiCacheEntry {
@@ -32,13 +30,15 @@ function roundCoordinate(value: number) {
 }
 
 function createCacheKey(input: UseNearbyPoisInput, categoriesKey: string) {
-  if (!input.center) return ''
+  if (!input.bounds) return ''
 
   return [
     categoriesKey,
-    roundCoordinate(input.center.latitude),
-    roundCoordinate(input.center.longitude),
-    Math.round(input.radiusMeters),
+    Math.round(input.zoom),
+    roundCoordinate(input.bounds.south),
+    roundCoordinate(input.bounds.west),
+    roundCoordinate(input.bounds.north),
+    roundCoordinate(input.bounds.east),
     input.limit ?? '',
   ].join('|')
 }
@@ -82,26 +82,27 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
   )
   const cacheKey = useMemo(
     () => createCacheKey(input, categoriesKey),
-    [categoriesKey, input.center, input.limit, input.radiusMeters],
+    [categoriesKey, input.bounds, input.limit, input.zoom],
   )
 
   useEffect(() => {
-    if (!input.enabled || !input.center || !input.categories.length) {
+    if (!input.enabled || !input.bounds || !input.center || !input.categories.length) {
       setState(emptyState)
       return
     }
 
     if (isCooldownActive()) {
       const cachedPois = getCachedPois(cacheKey)
-      setState({
-        empty: cachedPois ? cachedPois.length === 0 : true,
+      setState((current) => ({
+        empty: cachedPois ? cachedPois.length === 0 : current.pois.length === 0,
         error: 'Locais indisponiveis no momento.',
         loading: false,
-        pois: cachedPois ?? [],
-      })
+        pois: cachedPois ?? current.pois,
+      }))
       return
     }
 
+    const searchBounds = input.bounds
     const searchCenter = input.center
     const cachedPois = getCachedPois(cacheKey)
     if (cachedPois) {
@@ -123,12 +124,12 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
         loading: true,
       }))
 
-      searchPoisByCenter(
+      searchPoisByBounds(
         {
+          bounds: searchBounds,
           categories: input.categories,
           center: searchCenter,
           limit: input.limit,
-          radiusMeters: input.radiusMeters,
         },
         abortController.signal,
       )
@@ -152,12 +153,12 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
 
           setState((current) => ({
             ...current,
-            empty: cached ? cached.length === 0 : true,
+            empty: cached ? cached.length === 0 : current.pois.length === 0,
             error: isCooldownActive()
               ? 'Locais indisponiveis no momento.'
               : 'Pontos de interesse indisponiveis agora.',
             loading: false,
-            pois: cached ?? [],
+            pois: cached ?? current.pois,
           }))
         })
     }, debounceMs)
@@ -170,11 +171,12 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
     cacheKey,
     categoriesKey,
     input.categories,
+    input.bounds,
     input.center,
     input.debounceMs,
     input.enabled,
     input.limit,
-    input.radiusMeters,
+    input.zoom,
     refreshNonce,
   ])
 
