@@ -1,15 +1,41 @@
 import { divIcon, type DivIcon, type LatLngBounds } from 'leaflet'
+import { Fuel, GraduationCap, Hospital, Store, Trees, Utensils } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { Marker, Pane, Popup, useMap, useMapEvents } from 'react-leaflet'
-import { poiCategoryLabels, poiCategoryPriority, poiCategoryShortLabels } from '../../constants/pois'
+import { poiCategoryLabels, poiCategoryPriority } from '../../constants/pois'
 import type { Poi, PoiCategory } from '../../types/pois'
 
 const poiIconCache = new Map<PoiCategory, DivIcon>()
 const POI_PANE_NAME = 'poi-pane'
 const MOBILE_MEDIA_QUERY = '(max-width: 900px)'
 
+const POI_ICON_SVGS: Record<PoiCategory, string> = {
+  market: renderToStaticMarkup(
+    <Store aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+  ),
+  fuel: renderToStaticMarkup(
+    <Fuel aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+  ),
+  health: renderToStaticMarkup(
+    <Hospital aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+  ),
+  food: renderToStaticMarkup(
+    <Utensils aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+  ),
+  education: renderToStaticMarkup(
+    <GraduationCap aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+  ),
+  leisure: renderToStaticMarkup(
+    <Trees aria-hidden="true" className="poi-map-marker__svg" size={14} strokeWidth={2} />,
+  ),
+}
+
+type PoiDensityMode = 'home' | 'map'
+
 interface PoiLayerProps {
   pois: Poi[]
+  densityMode?: PoiDensityMode
   onVisibleCountChange?: (count: number) => void
 }
 
@@ -32,11 +58,11 @@ const POI_DENSITY_PRESETS: Array<{
   mobile: PoiRenderConfig
 }> = [
   {
-    maxZoom: 12,
+    maxZoom: 15,
     desktop: {
       grid: { rows: 5, cols: 6 },
       maxPerCell: 2,
-      maxTotal: 48,
+      maxTotal: 40,
       requireName: true,
       dedupePrecision: 4,
     },
@@ -49,18 +75,18 @@ const POI_DENSITY_PRESETS: Array<{
     },
   },
   {
-    maxZoom: 14,
+    maxZoom: 16,
     desktop: {
-      grid: { rows: 6, cols: 8 },
-      maxPerCell: 3,
-      maxTotal: 80,
+      grid: { rows: 6, cols: 7 },
+      maxPerCell: 2,
+      maxTotal: 45,
       requireName: false,
       dedupePrecision: 4,
     },
     mobile: {
       grid: { rows: 5, cols: 5 },
       maxPerCell: 2,
-      maxTotal: 40,
+      maxTotal: 30,
       requireName: false,
       dedupePrecision: 4,
     },
@@ -68,21 +94,26 @@ const POI_DENSITY_PRESETS: Array<{
   {
     maxZoom: Number.POSITIVE_INFINITY,
     desktop: {
-      grid: { rows: 8, cols: 10 },
-      maxPerCell: 4,
-      maxTotal: 120,
+      grid: { rows: 7, cols: 8 },
+      maxPerCell: 3,
+      maxTotal: 50,
       requireName: false,
       dedupePrecision: 5,
     },
     mobile: {
       grid: { rows: 6, cols: 6 },
-      maxPerCell: 3,
-      maxTotal: 65,
+      maxPerCell: 2,
+      maxTotal: 34,
       requireName: false,
       dedupePrecision: 5,
     },
   },
 ]
+
+const POI_HOME_LIMITS = {
+  desktop: { maxPerCell: 1, maxTotal: 24 },
+  mobile: { maxPerCell: 1, maxTotal: 18 },
+}
 
 function getPoiIcon(category: PoiCategory) {
   const cached = poiIconCache.get(category)
@@ -92,12 +123,12 @@ function getPoiIcon(category: PoiCategory) {
     className: 'poi-map-marker-shell',
     html: `
       <div class="poi-map-marker poi-map-marker--${category}">
-        <span>${poiCategoryShortLabels[category]}</span>
+        ${POI_ICON_SVGS[category]}
       </div>
     `,
-    iconAnchor: [10, 10],
-    iconSize: [20, 20],
-    popupAnchor: [0, -12],
+    iconAnchor: [11, 11],
+    iconSize: [22, 22],
+    popupAnchor: [0, -10],
   })
 
   poiIconCache.set(category, icon)
@@ -138,10 +169,31 @@ function comparePois(a: Poi, b: Poi) {
   return a.id < b.id ? -1 : 1
 }
 
-function getPoiRenderConfig(zoom: number, isMobile: boolean): PoiRenderConfig {
-  const safeZoom = Number.isFinite(zoom) ? zoom : 12
+function applyDensityMode(
+  config: PoiRenderConfig,
+  densityMode: PoiDensityMode,
+  isMobile: boolean,
+): PoiRenderConfig {
+  if (densityMode !== 'home') return config
+
+  const limits = isMobile ? POI_HOME_LIMITS.mobile : POI_HOME_LIMITS.desktop
+  return {
+    ...config,
+    maxPerCell: Math.min(config.maxPerCell, limits.maxPerCell),
+    maxTotal: Math.min(config.maxTotal, limits.maxTotal),
+    requireName: true,
+  }
+}
+
+function getPoiRenderConfig(
+  zoom: number,
+  isMobile: boolean,
+  densityMode: PoiDensityMode,
+): PoiRenderConfig {
+  const safeZoom = Number.isFinite(zoom) ? zoom : 15
   const preset = POI_DENSITY_PRESETS.find((item) => safeZoom <= item.maxZoom) ?? POI_DENSITY_PRESETS[0]
-  return isMobile ? preset.mobile : preset.desktop
+  const baseConfig = isMobile ? preset.mobile : preset.desktop
+  return applyDensityMode(baseConfig, densityMode, isMobile)
 }
 
 function roundCoordinate(value: number, precision: number) {
@@ -222,7 +274,7 @@ function getInitialMobileState() {
   return window.matchMedia(MOBILE_MEDIA_QUERY).matches
 }
 
-export function PoiLayer({ pois, onVisibleCountChange }: PoiLayerProps) {
+export function PoiLayer({ pois, densityMode = 'map', onVisibleCountChange }: PoiLayerProps) {
   const map = useMap()
   const [mapState, setMapState] = useState(() => ({
     zoom: map.getZoom(),
@@ -266,8 +318,8 @@ export function PoiLayer({ pois, onVisibleCountChange }: PoiLayerProps) {
   }, [])
 
   const renderConfig = useMemo(
-    () => getPoiRenderConfig(mapState.zoom, isMobile),
-    [isMobile, mapState.zoom],
+    () => getPoiRenderConfig(mapState.zoom, isMobile, densityMode),
+    [densityMode, isMobile, mapState.zoom],
   )
   const visiblePois = useMemo(
     () => filterPoisByGrid(pois, renderConfig, mapState.bounds),

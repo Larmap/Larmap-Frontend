@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { searchPoisByCenter } from '../api/pois'
+import { PoiApiError, searchPoisByCenter } from '../api/pois'
 import type { Poi, PoiCategory, PoiSearchState } from '../types/pois'
 
 const CACHE_TTL_MS = 10 * 60 * 1000
-const DEFAULT_DEBOUNCE_MS = 700
+const DEFAULT_DEBOUNCE_MS = 1200
+const COOLDOWN_MS = 3 * 60 * 1000
+
+let cooldownUntil = 0
 
 interface UseNearbyPoisInput {
   enabled: boolean
@@ -59,6 +62,10 @@ function setCachedPois(cacheKey: string, pois: Poi[]) {
   })
 }
 
+function isCooldownActive() {
+  return Date.now() < cooldownUntil
+}
+
 const emptyState: PoiSearchState = {
   empty: false,
   error: '',
@@ -84,6 +91,17 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
       return
     }
 
+    if (isCooldownActive()) {
+      const cachedPois = getCachedPois(cacheKey)
+      setState({
+        empty: cachedPois ? cachedPois.length === 0 : true,
+        error: 'Locais indisponiveis no momento.',
+        loading: false,
+        pois: cachedPois ?? [],
+      })
+      return
+    }
+
     const searchCenter = input.center
     const cachedPois = getCachedPois(cacheKey)
     if (cachedPois) {
@@ -97,6 +115,7 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
     }
 
     const abortController = new AbortController()
+    const debounceMs = Math.max(input.debounceMs ?? DEFAULT_DEBOUNCE_MS, DEFAULT_DEBOUNCE_MS)
     const debounceId = window.setTimeout(() => {
       setState((current) => ({
         ...current,
@@ -125,14 +144,23 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
         .catch((caughtError) => {
           if (caughtError instanceof DOMException && caughtError.name === 'AbortError') return
 
+          if (caughtError instanceof PoiApiError && caughtError.status === 429) {
+            cooldownUntil = Date.now() + COOLDOWN_MS
+          }
+
+          const cached = getCachedPois(cacheKey)
+
           setState((current) => ({
             ...current,
-            empty: false,
-            error: 'Pontos de interesse indisponiveis agora.',
+            empty: cached ? cached.length === 0 : true,
+            error: isCooldownActive()
+              ? 'Locais indisponiveis no momento.'
+              : 'Pontos de interesse indisponiveis agora.',
             loading: false,
+            pois: cached ?? [],
           }))
         })
-    }, input.debounceMs ?? DEFAULT_DEBOUNCE_MS)
+    }, debounceMs)
 
     return () => {
       abortController.abort()

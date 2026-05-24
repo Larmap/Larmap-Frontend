@@ -2081,53 +2081,58 @@ td {
 
 .poi-map-marker {
   align-items: center;
-  border: 1.5px solid #ffffff;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.16);
   border-radius: 999px;
   box-shadow:
-    0 5px 12px rgba(18, 35, 49, 0.12),
-    0 0 0 1px rgba(255, 255, 255, 0.32);
-  color: #ffffff;
+    0 4px 10px rgba(18, 35, 49, 0.12),
+    0 0 0 1px rgba(255, 255, 255, 0.6);
+  color: var(--poi-color, #1f2937);
   display: inline-flex;
-  font-size: 0.58rem;
-  font-weight: 780;
-  height: 20px;
+  height: 22px;
   justify-content: center;
-  opacity: 0.9;
+  opacity: 0.88;
   transition:
     box-shadow 150ms ease,
     transform 150ms ease;
-  width: 20px;
+  width: 22px;
 }
 
 .poi-map-marker:hover {
   box-shadow:
-    0 7px 16px rgba(18, 35, 49, 0.16),
-    0 0 0 2px rgba(255, 255, 255, 0.4);
-  transform: translateY(-1px) scale(1.04);
+    0 6px 14px rgba(18, 35, 49, 0.16),
+    0 0 0 2px rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px) scale(1.05);
+}
+
+.poi-map-marker__svg {
+  display: block;
+  height: 12px;
+  width: 12px;
 }
 
 .poi-map-marker--market {
-  background: #15803d;
+  --poi-color: #1a7f3c;
 }
 
 .poi-map-marker--fuel {
-  background: #b45309;
+  --poi-color: #b45309;
 }
 
 .poi-map-marker--health {
-  background: #dc2626;
+  --poi-color: #c92525;
 }
 
 .poi-map-marker--food {
-  background: #c2410c;
+  --poi-color: #c2410c;
 }
 
 .poi-map-marker--education {
-  background: #2563eb;
+  --poi-color: #2563eb;
 }
 
 .poi-map-marker--leisure {
-  background: #0f766e;
+  --poi-color: #0f766e;
 }
 
 .poi-map-popup {
@@ -3489,6 +3494,29 @@ td {
   position: absolute;
   right: 16px;
   z-index: 700;
+}
+
+.poi-zoom-hint {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 999px;
+  bottom: 16px;
+  box-shadow: 0 6px 16px rgba(18, 35, 49, 0.12);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 720;
+  left: 16px;
+  max-width: min(70%, 320px);
+  padding: 7px 12px;
+  pointer-events: none;
+  position: absolute;
+  z-index: 710;
+}
+
+.poi-zoom-hint--error {
+  background: var(--danger-soft);
+  border-color: rgba(148, 52, 52, 0.2);
+  color: #943434;
 }
 
 .map-corner-summary svg {
@@ -4933,9 +4961,13 @@ td {
   }
 
   .poi-map-marker {
-    font-size: 0.52rem;
-    height: 18px;
-    width: 18px;
+    height: 20px;
+    width: 20px;
+  }
+
+  .poi-map-marker__svg {
+    height: 11px;
+    width: 11px;
   }
 
   .poi-map-popup {

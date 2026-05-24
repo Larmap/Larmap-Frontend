@@ -23,13 +23,14 @@ import {
 } from 'lucide-react'
 import { divIcon } from 'leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { ApiError, leadsApi, propertiesApi } from '../api/client'
 import type { GeocodingResult } from '../api/geocoding'
 import { CityAutocomplete } from '../components/CityAutocomplete'
 import { PoiCategoryControl } from '../components/map/PoiCategoryControl'
 import { PoiLayer } from '../components/map/PoiLayer'
+import { PoiViewportTracker, type PoiViewport } from '../components/map/PoiViewportTracker'
 import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { StatusBadge } from '../components/StatusBadge'
@@ -61,6 +62,8 @@ const defaultCenter: [number, number] = [
 const defaultCity = 'Rio de Janeiro'
 const cityRadiusKm = 55
 const neighborhoodRadiusKm = 8
+const MIN_POI_ZOOM = 15
+const DEFAULT_MAP_ZOOM = 12
 
 const statusOptions: Array<{ value: PropertyStatus; label: string }> = [
   { value: 'AVAILABLE', label: 'Disponível' },
@@ -623,42 +626,12 @@ function MapViewport({ view }: { view: MapViewState }) {
   return null
 }
 
-function PoiMapCenterTracker({
-  enabled,
-  onCenterChange,
-}: {
-  enabled: boolean
-  onCenterChange: (center: PoiSearchCenter) => void
-}) {
-  const map = useMapEvents({
-    moveend() {
-      if (!enabled) return
-      const center = map.getCenter()
-      onCenterChange({
-        latitude: center.lat,
-        longitude: center.lng,
-      })
-    },
-    zoomend() {
-      if (!enabled) return
-      const center = map.getCenter()
-      onCenterChange({
-        latitude: center.lat,
-        longitude: center.lng,
-      })
-    },
-  })
-
-  useEffect(() => {
-    if (!enabled) return
-    const center = map.getCenter()
-    onCenterChange({
-      latitude: center.lat,
-      longitude: center.lng,
-    })
-  }, [enabled, map, onCenterChange])
-
-  return null
+function getPoiRadiusMeters(zoom: number) {
+  if (!Number.isFinite(zoom)) return 800
+  if (zoom < MIN_POI_ZOOM) return null
+  if (zoom < 16) return 800
+  if (zoom < 17) return 600
+  return 400
 }
 
 function getMarkerIcon(result: PropertyResult, isSelected: boolean) {
@@ -694,6 +667,8 @@ export function PublicMapPage() {
     location.pathname === '/mapa' &&
     !listingIntent &&
     !searchParams.get('q')?.trim()
+  const initialMapZoom =
+    location.pathname === '/mapa' && !listingIntent ? MIN_POI_ZOOM : DEFAULT_MAP_ZOOM
   const [properties, setProperties] = useState<Property[]>([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [citySearchValue, setCitySearchValue] = useState(
@@ -708,7 +683,7 @@ export function PublicMapPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [mapView, setMapView] = useState<MapViewState>({
     center: defaultCenter,
-    zoom: 12,
+    zoom: initialMapZoom,
     version: 0,
   })
   const [poisVisible, setPoisVisible] = useState(true)
@@ -717,6 +692,7 @@ export function PublicMapPage() {
     latitude: defaultCenter[0],
     longitude: defaultCenter[1],
   })
+  const [poiZoom, setPoiZoom] = useState(initialMapZoom)
   const [visiblePoiCount, setVisiblePoiCount] = useState(0)
   const [filtersPanelCollapsed, setFiltersPanelCollapsed] = useState(() => initialInteractiveMap)
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(
@@ -750,21 +726,28 @@ export function PublicMapPage() {
           : 'map'
   const isInteractiveMap = pageTheme === 'map'
   const shouldUsePois = location.pathname === '/mapa' && !listingIntent
-  const shouldSearchPois = shouldUsePois && poisVisible
+  const poiRadiusMeters = getPoiRadiusMeters(poiZoom)
+  const isPoiZoomReady = poiZoom >= MIN_POI_ZOOM
+  const shouldSearchPois = shouldUsePois && poisVisible && isPoiZoomReady
   const nearbyPois = useNearbyPois({
     categories: poiCategories,
     center: poiCenter,
     enabled: shouldSearchPois,
-    limit: 140,
-    radiusMeters: 2000,
+    limit: 60,
+    radiusMeters: poiRadiusMeters ?? 800,
+    debounceMs: 1200,
   })
-  const poiStatusLabel = shouldSearchPois
-    ? nearbyPois.loading
-      ? 'carregando'
-      : nearbyPois.error
-        ? 'indisponivel'
-        : ''
-    : ''
+  const showPoiZoomHint = shouldUsePois && poisVisible && !isPoiZoomReady
+  const showPoiErrorHint = shouldUsePois && poisVisible && isPoiZoomReady && Boolean(nearbyPois.error)
+  const poiStatusLabel = showPoiZoomHint
+    ? 'aproxime para ver locais'
+    : shouldSearchPois
+      ? nearbyPois.loading
+        ? 'carregando'
+        : nearbyPois.error
+          ? 'indisponivel'
+          : ''
+      : ''
   const pageClasses = [
     'public-map-page',
     `public-map-page--${pageTheme}`,
@@ -772,16 +755,17 @@ export function PublicMapPage() {
   ]
     .filter(Boolean)
     .join(' ')
-  const handlePoiCenterChange = useCallback((center: PoiSearchCenter) => {
+  const handlePoiViewportChange = useCallback((viewport: PoiViewport) => {
+    setPoiZoom((current) => (Math.abs(current - viewport.zoom) < 0.05 ? current : viewport.zoom))
     setPoiCenter((current) => {
       if (
-        Math.abs(current.latitude - center.latitude) < 0.0001 &&
-        Math.abs(current.longitude - center.longitude) < 0.0001
+        Math.abs(current.latitude - viewport.center.latitude) < 0.0001 &&
+        Math.abs(current.longitude - viewport.center.longitude) < 0.0001
       ) {
         return current
       }
 
-      return center
+      return viewport.center
     })
   }, [])
   const handlePoiVisibleCountChange = useCallback((count: number) => {
@@ -1165,7 +1149,7 @@ export function PublicMapPage() {
       locationCenter: center,
       locationRadiusKm: cityRadiusKm,
     }))
-    moveMap(center, 13)
+    moveMap(center, MIN_POI_ZOOM)
 
     if (markAsBase) {
       setBaseLocationFilter({
@@ -1286,7 +1270,7 @@ export function PublicMapPage() {
                   </span>
                   <span className="map-detail-toggle__label">
                     <span>{poisVisible ? 'Locais visiveis' : 'Locais ocultos'}</span>
-                    {poisVisible ? (
+                    {poisVisible && isPoiZoomReady ? (
                       <span className="map-detail-toggle__count">({visiblePoiCount})</span>
                     ) : null}
                     {poiStatusLabel ? (
@@ -1591,11 +1575,12 @@ export function PublicMapPage() {
             </div>
           </div>
 
-          <MapContainer center={defaultCenter} className="public-smart-map" scrollWheelZoom zoom={12}>
+          <MapContainer center={defaultCenter} className="public-smart-map" scrollWheelZoom zoom={initialMapZoom}>
             <TileLayer attribution={publicMapAttribution} url={publicDetailedMapTileLayerUrl} />
             <MapViewport view={mapView} />
-            <PoiMapCenterTracker enabled={shouldUsePois} onCenterChange={handlePoiCenterChange} />
+            <PoiViewportTracker enabled={shouldUsePois} onViewportChange={handlePoiViewportChange} />
             <PoiLayer
+              densityMode="map"
               onVisibleCountChange={handlePoiVisibleCountChange}
               pois={shouldSearchPois ? nearbyPois.pois : []}
             />
@@ -1641,6 +1626,12 @@ export function PublicMapPage() {
             })}
 
           </MapContainer>
+
+          {showPoiZoomHint ? (
+            <div className="poi-zoom-hint">Aproxime o mapa para ver locais proximos.</div>
+          ) : showPoiErrorHint ? (
+            <div className="poi-zoom-hint poi-zoom-hint--error">Locais indisponiveis no momento.</div>
+          ) : null}
 
           <div className="map-corner-summary" aria-hidden="true">
             <Home size={14} />

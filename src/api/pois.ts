@@ -2,9 +2,19 @@ import { poiCategoryLabels } from '../constants/pois'
 import type { Poi, PoiCategory, PoiSearchParams } from '../types/pois'
 
 const OVERPASS_INTERPRETER_URL = 'https://overpass-api.de/api/interpreter'
-const DEFAULT_POI_LIMIT = 140
+const DEFAULT_POI_LIMIT = 90
 const MIN_RADIUS_METERS = 250
-const MAX_RADIUS_METERS = 3000
+const MAX_RADIUS_METERS = 1200
+
+export class PoiApiError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'PoiApiError'
+    this.status = status
+  }
+}
 
 type OverpassElementType = 'node' | 'way' | 'relation'
 
@@ -54,7 +64,7 @@ function clampRadius(radiusMeters: number) {
 }
 
 function normalizeCoordinate(value: number) {
-  return Number(value.toFixed(6))
+  return Number(value.toFixed(4))
 }
 
 function buildOverpassQuery(params: PoiSearchParams) {
@@ -218,7 +228,7 @@ export async function searchPoisByCenter(
   })
 
   if (!response.ok) {
-    throw new Error('Nao foi possivel buscar pontos de interesse agora.')
+    throw new PoiApiError(response.status, `Overpass error ${response.status}`)
   }
 
   const payload = (await response.json()) as OverpassResponse

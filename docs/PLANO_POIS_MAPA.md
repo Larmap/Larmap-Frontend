@@ -25,8 +25,13 @@ A camada `PoiLayer` passou a aplicar filtragem leve antes de renderizar os marca
 - Prioridade de selecao: POIs com nome valido, depois categorias principais e entao menor distancia.
 - Regras mobile mais restritivas (matchMedia max-width 900px).
 - POIs em pane com z-index menor que os imoveis.
-- Marcadores menores e popups mais discretos.
+- Marcadores menores e popups mais discretos, sem texto no marcador.
+- Icones SVG minimalistas por categoria (lucide-react), com cor suave.
 - Controle "Locais visiveis" mostra quantidade, loading e erro de forma sutil.
+- POIs so carregam quando o zoom >= 15. Abaixo disso, a camada e escondida e um hint discreto aparece.
+- Raio por zoom: 15 -> 800m, 16 -> 600m, 17+ -> 400m.
+- Debounce minimo de 1200ms e cache em memoria com TTL de 10 minutos.
+- Cooldown global de 3 minutos apos erro 429, com mensagem "Locais indisponiveis no momento".
 
 Prioridade de categorias (maior -> menor):
 
@@ -39,15 +44,22 @@ Prioridade de categorias (maior -> menor):
 
 Limites por zoom (desktop):
 
-- Zoom <= 12: grid 6x5, max 2 por celula, max 48 no total, apenas POIs com nome.
-- Zoom 13-14: grid 8x6, max 3 por celula, max 80 no total.
-- Zoom >= 15: grid 10x8, max 4 por celula, max 120 no total.
+- Zoom <= 15: grid 6x5, max 2 por celula, max 40 no total, apenas POIs com nome.
+- Zoom 16: grid 7x6, max 2 por celula, max 45 no total.
+- Zoom >= 17: grid 8x7, max 3 por celula, max 50 no total.
 
 Limites por zoom (mobile, max-width 900px):
 
-- Zoom <= 12: grid 4x4, max 1 por celula, max 24 no total, apenas POIs com nome.
-- Zoom 13-14: grid 5x5, max 2 por celula, max 40 no total.
-- Zoom >= 15: grid 6x6, max 3 por celula, max 65 no total.
+- Zoom <= 15: grid 4x4, max 1 por celula, max 24 no total, apenas POIs com nome.
+- Zoom 16: grid 5x5, max 2 por celula, max 30 no total.
+- Zoom >= 17: grid 6x6, max 2 por celula, max 34 no total.
+
+Modo Home (decorativo):
+
+- Sem painel de categorias/legenda.
+- Maximo 24 POIs no desktop e 18 no mobile.
+- Maximo 1 POI por celula.
+- Apenas POIs com nome valido.
 
 ## Decisao de escopo para POIs gerais
 

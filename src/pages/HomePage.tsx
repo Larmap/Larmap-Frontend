@@ -1,15 +1,14 @@
 import { MapPin, Search } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet'
 import { Link, useNavigate } from 'react-router-dom'
 import { propertiesApi } from '../api/client'
 import { BrandLogo } from '../components/BrandLogo'
-import { PoiCategoryControl } from '../components/map/PoiCategoryControl'
 import { PoiLayer } from '../components/map/PoiLayer'
+import { PoiViewportTracker, type PoiViewport } from '../components/map/PoiViewportTracker'
 import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { PropertyCarousel } from '../components/PropertyCarousel'
-import { allPoiCategories } from '../constants/pois'
 import { publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
 import { useNearbyPois } from '../hooks/useNearbyPois'
 import { getRecentlyViewed, addRecentlyViewed } from '../hooks/useRecentlyViewed'
@@ -22,6 +21,8 @@ const homePoiCenter = {
   latitude: homeMapCenter[0],
   longitude: homeMapCenter[1],
 }
+const HOME_POI_CATEGORIES: PoiCategory[] = ['market', 'health', 'education', 'leisure']
+const HOME_MIN_POI_ZOOM = 15
 const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
 const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
 
@@ -56,18 +57,31 @@ function getPropertyCity(property: Property) {
   return property.city || property.cidade || ''
 }
 
+function getPoiRadiusMeters(zoom: number) {
+  if (!Number.isFinite(zoom)) return 800
+  if (zoom < HOME_MIN_POI_ZOOM) return null
+  if (zoom < 16) return 800
+  if (zoom < 17) return 600
+  return 400
+}
+
 export function HomePage() {
   const [locationQuery, setLocationQuery] = useState('')
   const [properties, setProperties] = useState<Property[]>([])
-  const [poiCategories, setPoiCategories] = useState<PoiCategory[]>(allPoiCategories)
+  const [homePoiZoom, setHomePoiZoom] = useState(HOME_MIN_POI_ZOOM)
   const navigate = useNavigate()
+  const homePoiRadiusMeters = getPoiRadiusMeters(homePoiZoom)
+  const isHomePoiZoomReady = homePoiZoom >= HOME_MIN_POI_ZOOM
   const nearbyPois = useNearbyPois({
-    categories: poiCategories,
+    categories: HOME_POI_CATEGORIES,
     center: homePoiCenter,
-    enabled: true,
-    limit: 110,
-    radiusMeters: 2200,
+    enabled: isHomePoiZoomReady,
+    limit: 45,
+    radiusMeters: homePoiRadiusMeters ?? 800,
+    debounceMs: 1200,
   })
+  const showHomePoiHint = !isHomePoiZoomReady
+  const showHomePoiError = isHomePoiZoomReady && Boolean(nearbyPois.error)
 
   useEffect(() => {
     let ignore = false
@@ -120,6 +134,10 @@ export function HomePage() {
     navigate(city ? `/mapa?q=${encodeURIComponent(city)}` : '/mapa')
   }
 
+  const handleHomeViewportChange = useCallback((viewport: PoiViewport) => {
+    setHomePoiZoom((current) => (Math.abs(current - viewport.zoom) < 0.05 ? current : viewport.zoom))
+  }, [])
+
   return (
     <main className="home-page">
       <PublicNavbar />
@@ -165,27 +183,18 @@ export function HomePage() {
           </div>
 
           <PublicMapFrame className="home-hero__map" element="div">
-            <PoiCategoryControl
-              categories={poiCategories}
-              className="home-poi-control"
-              compact
-              empty={nearbyPois.empty}
-              error={nearbyPois.error}
-              loading={nearbyPois.loading}
-              onCategoriesChange={setPoiCategories}
-              onRefresh={nearbyPois.refresh}
-            />
             <MapContainer
               center={homeMapCenter}
               className="home-hero__map-container"
               dragging
               doubleClickZoom
               scrollWheelZoom={false}
-              zoom={12}
+              zoom={HOME_MIN_POI_ZOOM}
               zoomControl
             >
               <TileLayer attribution={publicMapAttribution} url={publicDetailedMapTileLayerUrl} />
-              <PoiLayer pois={nearbyPois.pois} />
+              <PoiViewportTracker enabled onViewportChange={handleHomeViewportChange} />
+              <PoiLayer densityMode="home" pois={isHomePoiZoomReady ? nearbyPois.pois : []} />
               {previewDots.map((dot) => (
                 <CircleMarker
                   center={dot.center}
@@ -197,6 +206,12 @@ export function HomePage() {
                 />
               ))}
             </MapContainer>
+            {showHomePoiHint ? (
+              <div className="poi-zoom-hint">Aproxime o mapa para ver locais proximos.</div>
+            ) : null}
+            {showHomePoiError ? (
+              <div className="poi-zoom-hint poi-zoom-hint--error">Locais indisponiveis no momento.</div>
+            ) : null}
           </PublicMapFrame>
         </div>
       </section>

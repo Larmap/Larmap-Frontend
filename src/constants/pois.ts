@@ -31,7 +31,7 @@ export const poiCategoryPriority: Record<PoiCategory, number> = {
   market: 0,
   health: 1,
   education: 2,
-  food: 3,
-  leisure: 4,
+  leisure: 3,
+  food: 4,
   fuel: 5,
 }
