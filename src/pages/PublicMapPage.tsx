@@ -28,6 +28,7 @@ import { useLocation, useSearchParams } from 'react-router-dom'
 import { ApiError, leadsApi, propertiesApi } from '../api/client'
 import type { GeocodingResult } from '../api/geocoding'
 import { CityAutocomplete } from '../components/CityAutocomplete'
+import { MapResizeHandler } from '../components/map/MapResizeHandler'
 import { PoiCategoryControl } from '../components/map/PoiCategoryControl'
 import { PoiLayer } from '../components/map/PoiLayer'
 import { PoiViewportTracker, type PoiViewport } from '../components/map/PoiViewportTracker'
@@ -35,8 +36,13 @@ import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
-import { allPoiCategories } from '../constants/pois'
-import { publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
+import { allPoiCategories, getPoiSearchLimit, MIN_POI_ZOOM } from '../constants/pois'
+import {
+  publicDetailedMapTileLayerUrl,
+  publicMapAttribution,
+  PUBLIC_MAP_DEFAULT_ZOOM,
+  PUBLIC_MAP_INITIAL_ZOOM,
+} from '../constants/publicMap'
 import { getFavorites, toggleFavorite } from '../hooks/useFavorites'
 import { useGeocoding } from '../hooks/useGeocoding'
 import { useNearbyPois } from '../hooks/useNearbyPois'
@@ -62,8 +68,6 @@ const defaultCenter: [number, number] = [
 const defaultCity = 'Rio de Janeiro'
 const cityRadiusKm = 55
 const neighborhoodRadiusKm = 8
-const MIN_POI_ZOOM = 15
-const DEFAULT_MAP_ZOOM = 12
 
 const statusOptions: Array<{ value: PropertyStatus; label: string }> = [
   { value: 'AVAILABLE', label: 'Disponível' },
@@ -655,7 +659,7 @@ export function PublicMapPage() {
     !listingIntent &&
     !searchParams.get('q')?.trim()
   const initialMapZoom =
-    location.pathname === '/mapa' && !listingIntent ? MIN_POI_ZOOM : DEFAULT_MAP_ZOOM
+    location.pathname === '/mapa' && !listingIntent ? PUBLIC_MAP_INITIAL_ZOOM : PUBLIC_MAP_DEFAULT_ZOOM
   const [properties, setProperties] = useState<Property[]>([])
   const [selectedPropertyId, setSelectedPropertyId] = useState('')
   const [citySearchValue, setCitySearchValue] = useState(
@@ -718,7 +722,12 @@ export function PublicMapPage() {
     center: poiViewport?.center ?? null,
     debounceMs: 1200,
     enabled: shouldSearchPois,
-    limit: 260,
+    limit: getPoiSearchLimit(poiZoom, 'map'),
+    minZoom: MIN_POI_ZOOM,
+    paddedBounds: poiViewport?.paddedBounds ?? null,
+    poisVisible,
+    shouldSearchPois,
+    shouldUsePois,
     zoom: poiZoom,
   })
   const showPoiZoomHint = shouldUsePois && poisVisible && !isPoiZoomReady
@@ -739,6 +748,10 @@ export function PublicMapPage() {
   ]
     .filter(Boolean)
     .join(' ')
+  const mapResizeDependencies = useMemo(
+    () => [filtersPanelCollapsed, isInteractiveMap, listingIntent, pageMode],
+    [filtersPanelCollapsed, isInteractiveMap, listingIntent, pageMode],
+  )
   const handlePoiViewportChange = useCallback((viewport: PoiViewport) => {
     setPoiZoom((current) => (Math.abs(current - viewport.zoom) < 0.05 ? current : viewport.zoom))
     setPoiViewport(viewport)
@@ -1044,7 +1057,7 @@ export function PublicMapPage() {
 
   function focusProperty(result: PropertyResult) {
     setSelectedPropertyId(result.property.id)
-    moveMap([result.property.latitude, result.property.longitude], 15)
+    moveMap([result.property.latitude, result.property.longitude], PUBLIC_MAP_INITIAL_ZOOM)
   }
 
   function togglePropertyType(propertyType: PropertyTypeFilter) {
@@ -1124,7 +1137,7 @@ export function PublicMapPage() {
       locationCenter: center,
       locationRadiusKm: cityRadiusKm,
     }))
-    moveMap(center, MIN_POI_ZOOM)
+    moveMap(center, PUBLIC_MAP_INITIAL_ZOOM)
 
     if (markAsBase) {
       setBaseLocationFilter({
@@ -1552,6 +1565,7 @@ export function PublicMapPage() {
 
           <MapContainer center={defaultCenter} className="public-smart-map" scrollWheelZoom zoom={initialMapZoom}>
             <TileLayer attribution={publicMapAttribution} url={publicDetailedMapTileLayerUrl} />
+            <MapResizeHandler dependencies={mapResizeDependencies} />
             <MapViewport view={mapView} />
             <PoiViewportTracker enabled={shouldUsePois} onViewportChange={handlePoiViewportChange} />
             <PoiLayer

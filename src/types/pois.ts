@@ -1,4 +1,12 @@
-export type PoiCategory = 'market' | 'fuel' | 'health' | 'food' | 'education' | 'leisure'
+export type PoiCategory =
+  | 'market'
+  | 'fuel'
+  | 'health'
+  | 'pharmacy'
+  | 'food'
+  | 'education'
+  | 'leisure'
+  | 'religion'
 
 export interface Poi {
   id: string

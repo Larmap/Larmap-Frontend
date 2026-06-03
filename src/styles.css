@@ -2126,6 +2126,11 @@ td {
   --poi-rgb: 200, 50, 50;
 }
 
+.poi-map-marker--pharmacy {
+  --poi-color: #7c3aed;
+  --poi-rgb: 124, 58, 237;
+}
+
 .poi-map-marker--food {
   --poi-color: #b85b1f;
   --poi-rgb: 184, 91, 31;
@@ -2139,6 +2144,11 @@ td {
 .poi-map-marker--leisure {
   --poi-color: #2b7a5b;
   --poi-rgb: 43, 122, 91;
+}
+
+.poi-map-marker--religion {
+  --poi-color: #6d3f8c;
+  --poi-rgb: 109, 63, 140;
 }
 
 .poi-map-popup {
@@ -2796,9 +2806,12 @@ td {
   font-weight: 760;
   gap: 5px;
   justify-content: flex-start;
+  line-height: 1.12;
   min-height: 29px;
   min-width: 0;
+  overflow-wrap: anywhere;
   padding: 0 7px;
+  text-align: left;
 }
 
 .poi-category-chip span {
@@ -2827,6 +2840,10 @@ td {
   background: #dc2626;
 }
 
+.poi-category-chip--pharmacy span {
+  background: #7c3aed;
+}
+
 .poi-category-chip--food span {
   background: #c2410c;
 }
@@ -2837,6 +2854,10 @@ td {
 
 .poi-category-chip--leisure span {
   background: #0f766e;
+}
+
+.poi-category-chip--religion span {
+  background: #6d3f8c;
 }
 
 .poi-category-control--disabled {

@@ -4,13 +4,14 @@ import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet'
 import { Link, useNavigate } from 'react-router-dom'
 import { propertiesApi } from '../api/client'
 import { BrandLogo } from '../components/BrandLogo'
+import { MapResizeHandler } from '../components/map/MapResizeHandler'
 import { PoiLayer } from '../components/map/PoiLayer'
 import { PoiViewportTracker, type PoiViewport } from '../components/map/PoiViewportTracker'
 import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { PropertyCarousel } from '../components/PropertyCarousel'
-import { allPoiCategories } from '../constants/pois'
-import { publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
+import { allPoiCategories, getPoiSearchLimit, MIN_POI_ZOOM } from '../constants/pois'
+import { HOME_MAP_INITIAL_ZOOM, publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
 import { useNearbyPois } from '../hooks/useNearbyPois'
 import { getRecentlyViewed, addRecentlyViewed } from '../hooks/useRecentlyViewed'
 import type { Property } from '../types/api'
@@ -18,7 +19,6 @@ import { readStorageValue } from '../utils/storage'
 
 const homeMapCenter: [number, number] = [-22.9068, -43.1729]
 const HOME_POI_CATEGORIES = allPoiCategories
-const HOME_MIN_POI_ZOOM = 15
 const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
 const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
 
@@ -56,17 +56,22 @@ function getPropertyCity(property: Property) {
 export function HomePage() {
   const [locationQuery, setLocationQuery] = useState('')
   const [properties, setProperties] = useState<Property[]>([])
-  const [homePoiZoom, setHomePoiZoom] = useState(HOME_MIN_POI_ZOOM)
+  const [homePoiZoom, setHomePoiZoom] = useState(HOME_MAP_INITIAL_ZOOM)
   const [homePoiViewport, setHomePoiViewport] = useState<PoiViewport | null>(null)
   const navigate = useNavigate()
-  const isHomePoiZoomReady = homePoiZoom >= HOME_MIN_POI_ZOOM
+  const isHomePoiZoomReady = homePoiZoom >= MIN_POI_ZOOM
   const nearbyPois = useNearbyPois({
     bounds: homePoiViewport?.bounds ?? null,
     categories: HOME_POI_CATEGORIES,
     center: homePoiViewport?.center ?? null,
     debounceMs: 1200,
     enabled: isHomePoiZoomReady,
-    limit: 220,
+    limit: getPoiSearchLimit(homePoiZoom, 'home'),
+    minZoom: MIN_POI_ZOOM,
+    paddedBounds: homePoiViewport?.paddedBounds ?? null,
+    poisVisible: true,
+    shouldSearchPois: isHomePoiZoomReady,
+    shouldUsePois: true,
     zoom: homePoiZoom,
   })
   const showHomePoiHint = !isHomePoiZoomReady
@@ -179,10 +184,11 @@ export function HomePage() {
               dragging
               doubleClickZoom
               scrollWheelZoom={false}
-              zoom={HOME_MIN_POI_ZOOM}
+              zoom={HOME_MAP_INITIAL_ZOOM}
               zoomControl
             >
               <TileLayer attribution={publicMapAttribution} url={publicDetailedMapTileLayerUrl} />
+              <MapResizeHandler />
               <PoiViewportTracker enabled onViewportChange={handleHomeViewportChange} />
               <PoiLayer densityMode="home" pois={isHomePoiZoomReady ? nearbyPois.pois : []} />
               {previewDots.map((dot) => (

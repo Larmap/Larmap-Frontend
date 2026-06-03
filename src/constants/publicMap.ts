@@ -3,3 +3,7 @@ export const publicMapAttribution =
 
 export const publicCleanMapTileLayerUrl = 'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png'
 export const publicDetailedMapTileLayerUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+
+export const HOME_MAP_INITIAL_ZOOM = 15
+export const PUBLIC_MAP_DEFAULT_ZOOM = 12
+export const PUBLIC_MAP_INITIAL_ZOOM = 15

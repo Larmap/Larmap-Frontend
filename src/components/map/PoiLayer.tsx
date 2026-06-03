@@ -1,9 +1,14 @@
-import { divIcon, type DivIcon, type LatLngBounds } from 'leaflet'
-import { Fuel, GraduationCap, Hospital, ShoppingBasket, Trees, Utensils } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { divIcon, type DivIcon, type LatLngBounds, type Map as LeafletMap } from 'leaflet'
+import { Church, Fuel, GraduationCap, Hospital, Pill, ShoppingBasket, Trees, Utensils } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Marker, Pane, Popup, useMap, useMapEvents } from 'react-leaflet'
-import { poiCategoryLabels, poiCategoryPriority } from '../../constants/pois'
+import {
+  allPoiCategories,
+  POI_BOUNDS_PADDING,
+  poiCategoryLabels,
+  poiCategoryPriority,
+} from '../../constants/pois'
 import type { Poi, PoiCategory } from '../../types/pois'
 
 const poiIconCache = new Map<PoiCategory, DivIcon>()
@@ -20,6 +25,9 @@ const POI_ICON_SVGS: Record<PoiCategory, string> = {
   health: renderToStaticMarkup(
     <Hospital aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
+  pharmacy: renderToStaticMarkup(
+    <Pill aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
+  ),
   food: renderToStaticMarkup(
     <Utensils aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
@@ -28,6 +36,9 @@ const POI_ICON_SVGS: Record<PoiCategory, string> = {
   ),
   leisure: renderToStaticMarkup(
     <Trees aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
+  ),
+  religion: renderToStaticMarkup(
+    <Church aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
 }
 
@@ -52,24 +63,70 @@ interface PoiRenderConfig {
   dedupePrecision: number
 }
 
+interface PoiFilterResult {
+  afterBoundsFilter: number
+  afterDedupe: number
+  afterGrid: number
+  pois: Poi[]
+}
+
+interface MapPixelSize {
+  x: number
+  y: number
+}
+
 const POI_DENSITY_PRESETS: Array<{
   maxZoom: number
   desktop: PoiRenderConfig
   mobile: PoiRenderConfig
 }> = [
   {
-    maxZoom: 15,
+    maxZoom: 13,
     desktop: {
       grid: { rows: 8, cols: 10 },
+      maxPerCell: 3,
+      maxTotal: 120,
+      requireName: false,
+      dedupePrecision: 5,
+    },
+    mobile: {
+      grid: { rows: 6, cols: 7 },
       maxPerCell: 3,
       maxTotal: 80,
       requireName: false,
       dedupePrecision: 5,
     },
+  },
+  {
+    maxZoom: 14,
+    desktop: {
+      grid: { rows: 10, cols: 12 },
+      maxPerCell: 4,
+      maxTotal: 190,
+      requireName: false,
+      dedupePrecision: 5,
+    },
     mobile: {
-      grid: { rows: 7, cols: 7 },
-      maxPerCell: 2,
-      maxTotal: 70,
+      grid: { rows: 8, cols: 8 },
+      maxPerCell: 4,
+      maxTotal: 115,
+      requireName: false,
+      dedupePrecision: 5,
+    },
+  },
+  {
+    maxZoom: 15,
+    desktop: {
+      grid: { rows: 12, cols: 16 },
+      maxPerCell: 5,
+      maxTotal: 300,
+      requireName: false,
+      dedupePrecision: 5,
+    },
+    mobile: {
+      grid: { rows: 10, cols: 10 },
+      maxPerCell: 4,
+      maxTotal: 170,
       requireName: false,
       dedupePrecision: 5,
     },
@@ -77,16 +134,16 @@ const POI_DENSITY_PRESETS: Array<{
   {
     maxZoom: 16,
     desktop: {
-      grid: { rows: 10, cols: 12 },
-      maxPerCell: 3,
-      maxTotal: 100,
+      grid: { rows: 14, cols: 18 },
+      maxPerCell: 5,
+      maxTotal: 360,
       requireName: false,
       dedupePrecision: 5,
     },
     mobile: {
-      grid: { rows: 8, cols: 8 },
-      maxPerCell: 3,
-      maxTotal: 90,
+      grid: { rows: 11, cols: 11 },
+      maxPerCell: 5,
+      maxTotal: 220,
       requireName: false,
       dedupePrecision: 5,
     },
@@ -94,16 +151,16 @@ const POI_DENSITY_PRESETS: Array<{
   {
     maxZoom: Number.POSITIVE_INFINITY,
     desktop: {
-      grid: { rows: 12, cols: 14 },
-      maxPerCell: 3,
-      maxTotal: 120,
+      grid: { rows: 16, cols: 20 },
+      maxPerCell: 6,
+      maxTotal: 420,
       requireName: false,
       dedupePrecision: 5,
     },
     mobile: {
-      grid: { rows: 9, cols: 9 },
-      maxPerCell: 3,
-      maxTotal: 100,
+      grid: { rows: 12, cols: 12 },
+      maxPerCell: 5,
+      maxTotal: 260,
       requireName: false,
       dedupePrecision: 5,
     },
@@ -114,12 +171,12 @@ const POI_HOME_LIMITS = {
   desktop: {
     grid: { rows: 8, cols: 10 },
     maxPerCell: 3,
-    maxTotal: 40,
+    maxTotal: 56,
   },
   mobile: {
     grid: { rows: 7, cols: 7 },
     maxPerCell: 3,
-    maxTotal: 40,
+    maxTotal: 44,
   },
 }
 
@@ -195,15 +252,45 @@ function applyDensityMode(
   }
 }
 
+function scaleRenderConfigForMapSize(
+  config: PoiRenderConfig,
+  densityMode: PoiDensityMode,
+  isMobile: boolean,
+  mapSize: MapPixelSize,
+): PoiRenderConfig {
+  if (densityMode === 'home' || !config.grid) return config
+
+  const mapArea = Math.max(1, mapSize.x * mapSize.y)
+  const baseArea = isMobile ? 390 * 560 : 1100 * 720
+  const densityScale = Math.min(1.8, Math.max(1, mapArea / baseArea))
+  const axisScale = Math.sqrt(densityScale)
+
+  return {
+    ...config,
+    grid: {
+      cols: Math.max(config.grid.cols, Math.round(config.grid.cols * axisScale)),
+      rows: Math.max(config.grid.rows, Math.round(config.grid.rows * axisScale)),
+    },
+    maxPerCell: densityScale > 1.35 ? config.maxPerCell + 1 : config.maxPerCell,
+    maxTotal: Math.round(config.maxTotal * densityScale),
+  }
+}
+
 function getPoiRenderConfig(
   zoom: number,
   isMobile: boolean,
   densityMode: PoiDensityMode,
+  mapSize: MapPixelSize,
 ): PoiRenderConfig {
   const safeZoom = Number.isFinite(zoom) ? zoom : 15
   const preset = POI_DENSITY_PRESETS.find((item) => safeZoom <= item.maxZoom) ?? POI_DENSITY_PRESETS[0]
   const baseConfig = isMobile ? preset.mobile : preset.desktop
-  return applyDensityMode(baseConfig, densityMode, isMobile)
+  return scaleRenderConfigForMapSize(
+    applyDensityMode(baseConfig, densityMode, isMobile),
+    densityMode,
+    isMobile,
+    mapSize,
+  )
 }
 
 function roundCoordinate(value: number, precision: number) {
@@ -235,7 +322,31 @@ function pickPoisFromCell(bucket: Poi[], maxPerCell: number) {
   return picked
 }
 
-function filterPoisByGrid(pois: Poi[], config: PoiRenderConfig, bounds: LatLngBounds | null) {
+function getPoiCategoryCounts(pois: Poi[]) {
+  const categoryCounts = allPoiCategories.reduce((counts, category) => {
+    counts[category] = 0
+    return counts
+  }, {} as Record<PoiCategory, number>)
+
+  for (const poi of pois) {
+    categoryCounts[poi.category] += 1
+  }
+
+  return categoryCounts
+}
+
+function getLatLngBoundsSnapshot(bounds: LatLngBounds | null) {
+  if (!bounds) return null
+
+  return {
+    east: bounds.getEast(),
+    north: bounds.getNorth(),
+    south: bounds.getSouth(),
+    west: bounds.getWest(),
+  }
+}
+
+function filterPoisByGrid(pois: Poi[], config: PoiRenderConfig, bounds: LatLngBounds | null): PoiFilterResult {
   const normalized: Poi[] = []
   const seen = new Set<string>()
 
@@ -255,11 +366,25 @@ function filterPoisByGrid(pois: Poi[], config: PoiRenderConfig, bounds: LatLngBo
     normalized.push(poi)
   }
 
-  if (!normalized.length) return normalized
+  if (!normalized.length) {
+    return {
+      afterBoundsFilter: 0,
+      afterDedupe: 0,
+      afterGrid: 0,
+      pois: normalized,
+    }
+  }
 
   if (!bounds || !config.grid) {
     const ordered = [...normalized].sort(comparePois)
-    return ordered.slice(0, config.maxTotal)
+    const visiblePois = ordered.slice(0, config.maxTotal)
+
+    return {
+      afterBoundsFilter: normalized.length,
+      afterDedupe: normalized.length,
+      afterGrid: visiblePois.length,
+      pois: visiblePois,
+    }
   }
 
   const north = bounds.getNorth()
@@ -271,11 +396,15 @@ function filterPoisByGrid(pois: Poi[], config: PoiRenderConfig, bounds: LatLngBo
   const latStep = latSpan / config.grid.rows
   const lngStep = lngSpan / config.grid.cols
   const buckets = new Map<string, Poi[]>()
+  let afterBoundsFilter = 0
 
   for (const poi of normalized) {
     if (poi.latitude < south || poi.latitude > north || poi.longitude < west || poi.longitude > east) {
       continue
     }
+
+    afterBoundsFilter += 1
+
     const row = Math.min(
       config.grid.rows - 1,
       Math.max(0, Math.floor((poi.latitude - south) / latStep)),
@@ -294,10 +423,9 @@ function filterPoisByGrid(pois: Poi[], config: PoiRenderConfig, bounds: LatLngBo
     }
   }
 
-  const bucketGroups = Array.from(buckets.values())
-  for (const bucket of bucketGroups) {
-    bucket.sort(comparePois)
-  }
+  const bucketGroups = Array.from(buckets.entries())
+    .sort(([firstKey], [secondKey]) => firstKey.localeCompare(secondKey))
+    .map(([, bucket]) => bucket.sort(comparePois))
 
   const cellSelections = bucketGroups.map((bucket) => pickPoisFromCell(bucket, config.maxPerCell))
   const distributed: Poi[] = []
@@ -309,7 +437,12 @@ function filterPoisByGrid(pois: Poi[], config: PoiRenderConfig, bounds: LatLngBo
     distributed.push(...layer.slice(0, config.maxTotal - distributed.length))
   }
 
-  return distributed
+  return {
+    afterBoundsFilter,
+    afterDedupe: normalized.length,
+    afterGrid: distributed.length,
+    pois: distributed,
+  }
 }
 
 function getInitialMobileState() {
@@ -317,27 +450,42 @@ function getInitialMobileState() {
   return window.matchMedia(MOBILE_MEDIA_QUERY).matches
 }
 
+function getMapSizeSnapshot(map: LeafletMap): MapPixelSize {
+  const size = map.getSize()
+
+  return {
+    x: size.x,
+    y: size.y,
+  }
+}
+
+function getMapStateSnapshot(map: LeafletMap) {
+  const bounds = map.getBounds()
+
+  return {
+    bounds,
+    paddedBounds: bounds.pad(POI_BOUNDS_PADDING),
+    size: getMapSizeSnapshot(map),
+    zoom: map.getZoom(),
+  }
+}
+
 export function PoiLayer({ pois, densityMode = 'map', onVisibleCountChange }: PoiLayerProps) {
   const map = useMap()
-  const [mapState, setMapState] = useState(() => ({
-    zoom: map.getZoom(),
-    bounds: map.getBounds(),
-  }))
+  const getCurrentMapState = useCallback(() => getMapStateSnapshot(map), [map])
+  const [mapState, setMapState] = useState(() => getMapStateSnapshot(map))
   const [isMobile, setIsMobile] = useState(getInitialMobileState)
   const lastCountRef = useRef<number | null>(null)
 
   useMapEvents({
-    zoomend: () => {
-      setMapState({
-        zoom: map.getZoom(),
-        bounds: map.getBounds(),
-      })
-    },
     moveend: () => {
-      setMapState({
-        zoom: map.getZoom(),
-        bounds: map.getBounds(),
-      })
+      setMapState(getCurrentMapState())
+    },
+    resize: () => {
+      setMapState(getCurrentMapState())
+    },
+    zoomend: () => {
+      setMapState(getCurrentMapState())
     },
   })
 
@@ -361,13 +509,49 @@ export function PoiLayer({ pois, densityMode = 'map', onVisibleCountChange }: Po
   }, [])
 
   const renderConfig = useMemo(
-    () => getPoiRenderConfig(mapState.zoom, isMobile, densityMode),
-    [densityMode, isMobile, mapState.zoom],
+    () => getPoiRenderConfig(mapState.zoom, isMobile, densityMode, mapState.size),
+    [densityMode, isMobile, mapState.size, mapState.zoom],
   )
-  const visiblePois = useMemo(
-    () => filterPoisByGrid(pois, renderConfig, mapState.bounds),
-    [mapState.bounds, pois, renderConfig],
+  const filterResult = useMemo(
+    () => filterPoisByGrid(pois, renderConfig, mapState.paddedBounds),
+    [mapState.paddedBounds, pois, renderConfig],
   )
+  const visiblePois = filterResult.pois
+  const visibleCategoryCounts = useMemo(() => getPoiCategoryCounts(visiblePois), [visiblePois])
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+
+    console.info('[POI_DEBUG] poi render pipeline', {
+      afterBoundsFilter: filterResult.afterBoundsFilter,
+      afterDedupe: filterResult.afterDedupe,
+      afterGrid: filterResult.afterGrid,
+      bounds: getLatLngBoundsSnapshot(mapState.bounds),
+      categoryCounts: visibleCategoryCounts,
+      gridRemoved: Math.max(0, filterResult.afterBoundsFilter - filterResult.afterGrid),
+      mapSize: mapState.size,
+      paddedBounds: getLatLngBoundsSnapshot(mapState.paddedBounds),
+      received: pois.length,
+      renderConfig,
+      visible: visiblePois.length,
+      zoom: mapState.zoom,
+    })
+
+    console.info('[POI_DEBUG] rendered category counts', {
+      categoryCounts: visibleCategoryCounts,
+      total: visiblePois.length,
+    })
+  }, [
+    filterResult,
+    mapState.bounds,
+    mapState.paddedBounds,
+    mapState.size,
+    mapState.zoom,
+    pois.length,
+    renderConfig,
+    visibleCategoryCounts,
+    visiblePois.length,
+  ])
 
   useEffect(() => {
     if (!onVisibleCountChange) return
