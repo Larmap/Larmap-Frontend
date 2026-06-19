@@ -15,6 +15,7 @@ import { FavoritesPage } from './pages/FavoritesPage'
 import { HomePage } from './pages/HomePage'
 import { AboutPage, CookiesPolicyPage, PrivacyPolicyPage, TermsPage } from './pages/InstitutionalPages'
 import { LoginPage } from './pages/LoginPage'
+import { PartnerPage } from './pages/PartnerPage'
 import { PublicMapPage } from './pages/PublicMapPage'
 import { RegisterPage } from './pages/RegisterPage'
 
@@ -38,6 +39,7 @@ export function App() {
           <Route path="/termos-de-uso" element={<TermsPage />} />
           <Route path="/politica-de-privacidade" element={<PrivacyPolicyPage />} />
           <Route path="/politica-de-cookies" element={<CookiesPolicyPage />} />
+          <Route path="/seja-parceiro" element={<PartnerPage />} />
 
           <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />

@@ -38,9 +38,9 @@ const footerSections: FooterSection[] = [
     id: 'work',
     title: 'Trabalhe Conosco',
     links: [
-      { label: 'Sou imobiliária', to: '/trabalhe-conosco/imobiliaria' },
-      { label: 'Sou corretor', to: '/trabalhe-conosco/corretor' },
-      { label: 'Sou autônomo', to: '/trabalhe-conosco/autonomo' },
+      { label: 'Sou imobiliária', to: '/seja-parceiro?tipo=imobiliaria' },
+      { label: 'Sou corretor', to: '/seja-parceiro?tipo=corretor' },
+      { label: 'Sou autônomo', to: '/seja-parceiro?tipo=autonomo' },
     ],
   },
   {

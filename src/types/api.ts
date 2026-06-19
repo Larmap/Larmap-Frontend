@@ -185,6 +185,22 @@ export interface CreateLeadInput {
   message?: string
 }
 
+export type PartnershipType = 'imobiliaria' | 'corretor' | 'autonomo'
+
+export interface CreatePartnershipInput {
+  tipo: PartnershipType
+  nome: string
+  cpfCnpj: string
+  telefone: string
+  email: string
+  cidade: string
+  estado: string
+  creci: string
+  interesse: string
+  origem: string
+  motivacao: string
+}
+
 export type NegotiationStatus = 'OPEN' | 'FOLLOW_UP' | 'PROPOSAL' | 'CLOSED' | 'LOST'
 
 export interface Negotiation {

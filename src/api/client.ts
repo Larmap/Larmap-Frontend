@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   Company,
   CreateLeadInput,
+  CreatePartnershipInput,
   CreatePropertyInput,
   CreateUserInput,
   Lead,
@@ -258,6 +259,14 @@ export const leadsApi = {
     request<Lead>(`/leads/${leadId}`, {
       method: 'PATCH',
       token,
+      body: input,
+    }),
+}
+
+export const partnershipsApi = {
+  create: (input: CreatePartnershipInput) =>
+    request<void>('/partnerships', {
+      method: 'POST',
       body: input,
     }),
 }
