@@ -13,6 +13,7 @@ import { AdminSettingsPage } from './pages/AdminSettingsPage'
 import { BrokerDashboardPage } from './pages/BrokerDashboardPage'
 import { FavoritesPage } from './pages/FavoritesPage'
 import { HomePage } from './pages/HomePage'
+import { AboutPage, CookiesPolicyPage, PrivacyPolicyPage, TermsPage } from './pages/InstitutionalPages'
 import { LoginPage } from './pages/LoginPage'
 import { PublicMapPage } from './pages/PublicMapPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -33,6 +34,10 @@ export function App() {
           <Route path="/compra" element={<PublicMapPage />} />
           <Route path="/novidades" element={<PublicMapPage />} />
           <Route path="/mapa" element={<PublicMapPage />} />
+          <Route path="/sobre" element={<AboutPage />} />
+          <Route path="/termos-de-uso" element={<TermsPage />} />
+          <Route path="/politica-de-privacidade" element={<PrivacyPolicyPage />} />
+          <Route path="/politica-de-cookies" element={<CookiesPolicyPage />} />
 
           <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />

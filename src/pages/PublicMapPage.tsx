@@ -199,6 +199,19 @@ function getContactLabel(property: Property) {
   return property.contactWhatsApp || property.contactPhone || 'Contato a confirmar'
 }
 
+function getPropertyImages(property: Property) {
+  const candidates = [
+    ...(property.imageUrls ?? []),
+    ...(property.images ?? []),
+    ...(property.photos ?? []),
+    ...(property.media ?? [])
+      .filter((item) => item.type === 'image' || item.url || item.src)
+      .map((item) => item.url || item.src || ''),
+  ]
+
+  return Array.from(new Set(candidates.filter((image) => typeof image === 'string' && image.trim())))
+}
+
 function normalizeText(value: string) {
   return value
     .normalize('NFD')
@@ -1577,6 +1590,7 @@ export function PublicMapPage() {
             {filteredResults.map((result) => {
               const { property } = result
               const isSelected = property.id === selectedPropertyId
+              const propertyImages = getPropertyImages(property)
 
               return (
                 <Marker
@@ -1590,6 +1604,22 @@ export function PublicMapPage() {
                   <Popup className="clean-map-popup">
                     <div className="map-popup">
                       <strong>{property.title}</strong>
+                      {propertyImages.length ? (
+                        <div
+                          aria-label={`Imagens de ${property.title}`}
+                          className="map-popup-gallery"
+                          tabIndex={0}
+                        >
+                          {propertyImages.map((image, index) => (
+                            <img
+                              alt={`${property.title} - imagem ${index + 1}`}
+                              key={image}
+                              loading="lazy"
+                              src={image}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
                       <span>{result.priceLabel}</span>
                       <StatusBadge value={property.status} />
                       <span>{getLocationLabel(result)}</span>

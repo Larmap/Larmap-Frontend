@@ -3,10 +3,10 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet'
 import { Link, useNavigate } from 'react-router-dom'
 import { propertiesApi } from '../api/client'
-import { BrandLogo } from '../components/BrandLogo'
 import { MapResizeHandler } from '../components/map/MapResizeHandler'
 import { PoiLayer } from '../components/map/PoiLayer'
 import { PoiViewportTracker, type PoiViewport } from '../components/map/PoiViewportTracker'
+import { PublicFooter } from '../components/PublicFooter'
 import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { PropertyCarousel } from '../components/PropertyCarousel'
@@ -231,13 +231,7 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* ─── FOOTER ─── */}
-      <footer className="home-footer">
-        <div className="home-footer__inner">
-          <BrandLogo />
-          <span>© {new Date().getFullYear()} LarMap. Todos os direitos reservados.</span>
-        </div>
-      </footer>
+      <PublicFooter />
     </main>
   )
 }
