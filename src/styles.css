@@ -1003,14 +1003,12 @@ input:disabled {
 
 .home-explain-card__category {
   align-self: flex-start;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(2, 126, 202, 0.12);
-  border-left: 4px solid var(--blog-category-color, var(--blue));
-  border-radius: 999px;
-  color: var(--ink);
-  font-size: 0.72rem;
-  font-weight: 780;
-  padding: 6px 10px;
+  color: #1b723e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .home-explain-card__body h3 {
@@ -7190,20 +7188,12 @@ td {
 
 .blog-card__category,
 .blog-post-header__category {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  border-left: 4px solid var(--blog-category-color, var(--blue));
-  border-radius: 999px;
-  color: var(--ink);
-  font-size: 0.72rem;
-  font-weight: 780;
-  padding: 6px 10px;
-}
-
-.blog-card__category {
-  left: 12px;
-  position: absolute;
-  top: 12px;
+  color: #1b723e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .blog-card__body {
