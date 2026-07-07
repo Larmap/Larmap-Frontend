@@ -14,6 +14,9 @@ import { allPoiCategories, getPoiSearchLimit, MIN_POI_ZOOM } from '../constants/
 import { HOME_MAP_INITIAL_ZOOM, publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
 import { useNearbyPois } from '../hooks/useNearbyPois'
 import { getRecentlyViewed, addRecentlyViewed } from '../hooks/useRecentlyViewed'
+import { LarMapExplainSection } from '../modules/blog/components/LarMapExplainSection'
+import { blogService } from '../modules/blog/services/blog.service'
+import type { BlogPost } from '../modules/blog/types'
 import type { Property } from '../types/api'
 import { readStorageValue } from '../utils/storage'
 
@@ -55,6 +58,7 @@ function getPropertyCity(property: Property) {
 
 export function HomePage() {
   const [locationQuery, setLocationQuery] = useState('')
+  const [explainPosts, setExplainPosts] = useState<BlogPost[]>([])
   const [properties, setProperties] = useState<Property[]>([])
   const [homePoiZoom, setHomePoiZoom] = useState(HOME_MAP_INITIAL_ZOOM)
   const [homePoiViewport, setHomePoiViewport] = useState<PoiViewport | null>(null)
@@ -88,6 +92,22 @@ export function HomePage() {
       }
     }
     load()
+    return () => { ignore = true }
+  }, [])
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadBlogPosts() {
+      try {
+        const posts = await blogService.getPosts({ limit: 3, status: 'published' })
+        if (!ignore) setExplainPosts(posts)
+      } catch {
+        if (!ignore) setExplainPosts([])
+      }
+    }
+
+    loadBlogPosts()
     return () => { ignore = true }
   }, [])
 
@@ -230,6 +250,8 @@ export function HomePage() {
           />
         </div>
       </section>
+
+      <LarMapExplainSection posts={explainPosts} />
 
       <PublicFooter />
     </main>

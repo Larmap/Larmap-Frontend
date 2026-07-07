@@ -43,6 +43,7 @@ const emptyForm: CreatePartnershipInput = {
   interesse: '',
   origem: '',
   motivacao: '',
+  acceptedPrivacyPolicy: false,
 }
 
 function getPartnerType(value: string | null): PartnershipType {
@@ -118,6 +119,9 @@ export function PartnerPage() {
       interesse: form.interesse,
       origem: form.origem,
       motivacao: form.motivacao.trim(),
+      acceptedPrivacyPolicy: acceptedPrivacy,
+      landingPage: window.location.href,
+      referrerUrl: document.referrer,
     }
 
     setSubmitting(true)

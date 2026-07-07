@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { canUsePublicFavorites } from '../utils/userAccess'
 import { BrandLogo } from './BrandLogo'
 
-type PublicNavSection = 'rent' | 'sale' | 'news' | 'map' | 'favorites'
+type PublicNavSection = 'rent' | 'sale' | 'news' | 'blog' | 'map' | 'favorites'
 
 export function PublicNavbar() {
   const { isAuthenticated, user } = useAuth()
@@ -14,6 +14,7 @@ export function PublicNavbar() {
   function isNavItemActive(section: PublicNavSection) {
     if (section === 'favorites') return location.pathname === '/favoritos'
     if (section === 'news') return location.pathname === '/novidades'
+    if (section === 'blog') return location.pathname === '/blog' || location.pathname.startsWith('/blog/')
     const searchParams = new URLSearchParams(location.search)
     const listingType = searchParams.get('type')
     const searchQuery = searchParams.get('q')?.trim()
@@ -59,6 +60,13 @@ export function PublicNavbar() {
             to="/novidades"
           >
             Novidades
+          </Link>
+          <Link
+            aria-current={isNavItemActive('blog') ? 'page' : undefined}
+            className={isNavItemActive('blog') ? 'home-nav__link home-nav__link--active' : 'home-nav__link'}
+            to="/blog"
+          >
+            Blog
           </Link>
           <Link
             aria-current={isNavItemActive('map') ? 'page' : undefined}

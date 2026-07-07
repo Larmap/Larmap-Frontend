@@ -199,6 +199,9 @@ export interface CreatePartnershipInput {
   interesse: string
   origem: string
   motivacao: string
+  acceptedPrivacyPolicy: boolean
+  landingPage?: string
+  referrerUrl?: string
 }
 
 export type NegotiationStatus = 'OPEN' | 'FOLLOW_UP' | 'PROPOSAL' | 'CLOSED' | 'LOST'
