@@ -1,26 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import sitemap from 'vite-plugin-sitemap'
+import { generateSitemaps } from './src/seo/sitemap/generator'
 
 export default defineConfig({
   plugins: [
     react(),
-    sitemap({
-      hostname: 'https://larmap.com.br',
-      dynamicRoutes: [
-        '/',
-        '/aluguel',
-        '/compra',
-        '/novidades',
-        '/blog',
-        '/mapa',
-        '/sobre',
-        '/politica-de-privacidade',
-        '/politica-de-cookies',
-        '/termos-de-uso',
-        '/seja-parceiro',
-      ],
-    }),
+    {
+      name: 'larmap-sitemap-generator',
+      apply: 'build',
+      closeBundle: async () => {
+        await generateSitemaps({ outDir: 'dist' })
+      },
+    },
   ],
 
   server: {

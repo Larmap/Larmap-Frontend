@@ -4,6 +4,7 @@ import { AdminShell } from './components/AdminShell'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { PublicRoute } from './components/PublicRoute'
 import { ScrollToTop } from './components/ScrollToTop'
+import { SEO } from './components/SEO'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AdminAgentsPage } from './pages/AdminAgentsPage'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
@@ -20,6 +21,7 @@ import { LoginPage } from './pages/LoginPage'
 import { PartnerPage } from './pages/PartnerPage'
 import { PublicMapPage } from './pages/PublicMapPage'
 import { RegisterPage } from './pages/RegisterPage'
+import { getPublicPageConfig } from './seo/sitemap/config'
 
 const BlogPage = lazy(() => import('./modules/blog/pages/BlogPage').then((module) => ({ default: module.BlogPage })))
 const BlogPostPage = lazy(() =>
@@ -53,25 +55,70 @@ function lazyRoute(element: ReactNode) {
   return <Suspense fallback={<p className="route-loading">Carregando...</p>}>{element}</Suspense>
 }
 
+function publicPageRoute(path: string, element: ReactNode) {
+  const seo = getPublicPageConfig(path)
+
+  return (
+    <>
+      {seo ? <SEO canonical={seo.path} description={seo.description} title={seo.title} /> : null}
+      {element}
+    </>
+  )
+}
+
 export function App() {
   return (
     <BrowserRouter>
+      <SEO />
       <ScrollToTop />
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route
+            path="/"
+            element={publicPageRoute('/', <HomePage />)}
+          />
           <Route path="/favoritos" element={<FavoritesPage />} />
-          <Route path="/aluguel" element={<PublicMapPage />} />
-          <Route path="/compra" element={<PublicMapPage />} />
-          <Route path="/novidades" element={<PublicMapPage />} />
-          <Route path="/blog" element={lazyRoute(<BlogPage />)} />
+          <Route
+            path="/aluguel"
+            element={publicPageRoute('/aluguel', <PublicMapPage />)}
+          />
+          <Route
+            path="/compra"
+            element={publicPageRoute('/compra', <PublicMapPage />)}
+          />
+          <Route
+            path="/novidades"
+            element={publicPageRoute('/novidades', <PublicMapPage />)}
+          />
+          <Route
+            path="/blog"
+            element={publicPageRoute('/blog', lazyRoute(<BlogPage />))}
+          />
           <Route path="/blog/:slug" element={lazyRoute(<BlogPostPage />)} />
-          <Route path="/mapa" element={<PublicMapPage />} />
-          <Route path="/sobre" element={<AboutPage />} />
-          <Route path="/termos-de-uso" element={<TermsPage />} />
-          <Route path="/politica-de-privacidade" element={<PrivacyPolicyPage />} />
-          <Route path="/politica-de-cookies" element={<CookiesPolicyPage />} />
-          <Route path="/seja-parceiro" element={<PartnerPage />} />
+          <Route
+            path="/mapa"
+            element={publicPageRoute('/mapa', <PublicMapPage />)}
+          />
+          <Route
+            path="/sobre"
+            element={publicPageRoute('/sobre', <AboutPage />)}
+          />
+          <Route
+            path="/termos-de-uso"
+            element={publicPageRoute('/termos-de-uso', <TermsPage />)}
+          />
+          <Route
+            path="/politica-de-privacidade"
+            element={publicPageRoute('/politica-de-privacidade', <PrivacyPolicyPage />)}
+          />
+          <Route
+            path="/politica-de-cookies"
+            element={publicPageRoute('/politica-de-cookies', <CookiesPolicyPage />)}
+          />
+          <Route
+            path="/seja-parceiro"
+            element={publicPageRoute('/seja-parceiro', <PartnerPage />)}
+          />
 
           <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />

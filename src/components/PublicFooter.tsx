@@ -32,6 +32,7 @@ const footerSections: FooterSection[] = [
     links: [
       { label: 'Imóveis para Alugar', to: '/aluguel' },
       { label: 'Imóveis para Venda', to: '/compra' },
+      { label: 'LarMap Blog', to: '/blog' },
     ],
   },
   {

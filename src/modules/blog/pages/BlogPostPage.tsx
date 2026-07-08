@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom'
 import { PublicFooter } from '../../../components/PublicFooter'
 import { PublicNavbar } from '../../../components/PublicNavbar'
+import { SEO } from '../../../components/SEO'
 import { PostFooter } from '../components/PostFooter'
 import { PostHeader } from '../components/PostHeader'
 import { RelatedPosts } from '../components/RelatedPosts'
@@ -16,6 +17,20 @@ export function BlogPostPage() {
 
   return (
     <main className="blog-page blog-page--post">
+      {post ? (
+        <SEO
+          canonical={`/blog/${post.slug}`}
+          description={post.summary}
+          image={post.coverImage.url}
+          title={`${post.title} | LarMap`}
+        />
+      ) : (
+        <SEO
+          canonical={slug ? `/blog/${slug}` : '/blog'}
+          description="Notícias, dicas e conteúdos sobre mercado imobiliário, compra e aluguel de imóveis."
+          title="Blog | LarMap"
+        />
+      )}
       <PublicNavbar />
 
       {loading ? (

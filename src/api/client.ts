@@ -19,11 +19,7 @@ import type {
   UpdateUserInput,
   User,
 } from '../types/api'
-
-function normalizeApiBaseUrl(value: string) {
-  const baseUrl = value.replace(/\/+$/, '')
-  return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`
-}
+import { normalizeApiBaseUrl, PUBLIC_PROPERTY_ENDPOINTS } from './publicEndpoints'
 
 export const API_BASE_URL = normalizeApiBaseUrl(
   import.meta.env.VITE_API_URL ??
@@ -132,9 +128,7 @@ function normalizePropertyList(payload: unknown): Property[] {
 }
 
 async function requestFirstAvailableProperties(token?: string | null) {
-  const endpoints = token
-    ? ['/properties']
-    : ['/public/properties', '/properties/public', '/map/properties', '/properties']
+  const endpoints = token ? ['/properties'] : PUBLIC_PROPERTY_ENDPOINTS
 
   let lastError: unknown
 
