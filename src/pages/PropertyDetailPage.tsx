@@ -1,28 +1,11 @@
 import {
-  Bath,
-  BedDouble,
   Building2,
-  CalendarDays,
-  Car,
-  Church,
-  Dumbbell,
-  Fuel,
-  GraduationCap,
-  Hospital,
   Loader2,
   Mail,
-  MapPin,
-  MessageCircle,
   Phone,
-  Pill,
-  Ruler,
   Send,
-  Share2,
-  ShoppingBasket,
-  Trees,
-  Utensils,
+  UserRound,
   X,
-  type LucideIcon,
 } from 'lucide-react'
 import { divIcon } from 'leaflet'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
@@ -32,6 +15,7 @@ import { ApiError, leadsApi, propertiesApi } from '../api/client'
 import { MapResizeHandler } from '../components/map/MapResizeHandler'
 import { PoiLayer } from '../components/map/PoiLayer'
 import { PublicFooter } from '../components/PublicFooter'
+import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { SEO } from '../components/SEO'
 import { StatusBadge } from '../components/StatusBadge'
@@ -46,6 +30,7 @@ import {
   getCompactLocationLabel,
   getContactName,
   getFirstNumber,
+  getFirstString,
   getPriceLabel,
   getPropertyAreaLabel,
   getPropertyCode,
@@ -69,10 +54,14 @@ interface LeadFormState {
 }
 
 interface NearbyCategoryConfig {
-  Icon: LucideIcon
   plural: string
   singular: string
   title: string
+}
+
+interface PropertyDetailItem {
+  label: string
+  value: string
 }
 
 const emptyLeadForm: LeadFormState = {
@@ -83,55 +72,46 @@ const emptyLeadForm: LeadFormState = {
 
 const poiCategoryConfig: Record<PoiCategory, NearbyCategoryConfig> = {
   education: {
-    Icon: GraduationCap,
     plural: 'escolas',
     singular: 'escola',
     title: 'Ensino',
   },
   fitness: {
-    Icon: Dumbbell,
     plural: 'academias',
     singular: 'academia',
     title: 'Academias',
   },
   food: {
-    Icon: Utensils,
     plural: 'cafeterias e restaurantes',
     singular: 'cafeteria ou restaurante',
     title: 'Cafeterias e restaurantes',
   },
   fuel: {
-    Icon: Fuel,
     plural: 'postos de combustível',
     singular: 'posto de combustível',
     title: 'Postos',
   },
   health: {
-    Icon: Hospital,
     plural: 'hospitais e clínicas',
     singular: 'hospital ou clínica',
     title: 'Saúde',
   },
   leisure: {
-    Icon: Trees,
     plural: 'áreas de lazer',
     singular: 'área de lazer',
     title: 'Lazer',
   },
   market: {
-    Icon: ShoppingBasket,
     plural: 'supermercados',
     singular: 'supermercado',
     title: 'Supermercados',
   },
   pharmacy: {
-    Icon: Pill,
     plural: 'farmácias',
     singular: 'farmácia',
     title: 'Farmácias',
   },
   religion: {
-    Icon: Church,
     plural: 'templos e igrejas',
     singular: 'templo ou igreja',
     title: 'Templos',
@@ -261,11 +241,11 @@ function getSpecItems(property: Property) {
   const parking = getFirstNumber(property, ['parkingSpots', 'garageSpots', 'vagas'])
 
   return [
-    area ? { Icon: Ruler, label: area } : null,
-    bedrooms !== null ? { Icon: BedDouble, label: pluralize(bedrooms, 'quarto', 'quartos') } : null,
-    bathrooms !== null ? { Icon: Bath, label: pluralize(bathrooms, 'banheiro', 'banheiros') } : null,
-    parking !== null ? { Icon: Car, label: pluralize(parking, 'vaga', 'vagas') } : null,
-  ].filter((item): item is { Icon: LucideIcon; label: string } => Boolean(item))
+    area ? { label: 'Área', value: area } : null,
+    bedrooms !== null ? { label: 'Quartos', value: pluralize(bedrooms, 'quarto', 'quartos') } : null,
+    bathrooms !== null ? { label: 'Banheiros', value: pluralize(bathrooms, 'banheiro', 'banheiros') } : null,
+    parking !== null ? { label: 'Vagas', value: pluralize(parking, 'vaga', 'vagas') } : null,
+  ].filter((item): item is PropertyDetailItem => Boolean(item))
 }
 
 function PropertyMapFocus({ property, selectedPoi }: { property: Property; selectedPoi: Poi | null }) {
@@ -347,7 +327,7 @@ function NearbyPlacesSection({
   const hasPlaces = groupedPois.length > 0
 
   return (
-    <section className="property-section property-nearby-section panel" aria-labelledby="nearby-title">
+    <section className="property-section property-nearby-section" aria-labelledby="nearby-title">
       <div className="property-section__heading">
         <span className="eyebrow">Região</span>
         <h2 id="nearby-title">O que há por perto</h2>
@@ -359,15 +339,11 @@ function NearbyPlacesSection({
           <span className="nearby-muted">Buscando locais próximos...</span>
         ) : summaryItems.length ? (
           <div className="nearby-summary__grid">
-            {summaryItems.map(({ category, config, count }) => {
-              const Icon = config.Icon
-              return (
-                <span className="nearby-summary__item" key={category}>
-                  <Icon size={15} />
-                  {count} {count === 1 ? config.singular : config.plural} até 1 km
-                </span>
-              )
-            })}
+            {summaryItems.map(({ category, config, count }) => (
+              <span className="nearby-summary__item" key={category}>
+                {count} {count === 1 ? config.singular : config.plural} até 1 km
+              </span>
+            ))}
           </div>
         ) : (
           <span className="nearby-muted">Ainda não há dados suficientes para resumir a região.</span>
@@ -378,41 +354,33 @@ function NearbyPlacesSection({
 
       {hasPlaces ? (
         <div className="nearby-list">
-          {groupedPois.map(({ category, config, pois }) => {
-            const Icon = config.Icon
-
-            return (
-              <div className="nearby-group" key={category}>
-                <div className="nearby-group__title">
-                  <Icon size={16} />
-                  <span>{config.title}</span>
-                </div>
-                <div className="nearby-group__items">
-                  {pois.map((poi) => {
-                    const isSelected = selectedPoi?.id === poi.id
-                    const name = poi.name.trim() || poiCategoryLabels[poi.category]
-
-                    return (
-                      <button
-                        className={isSelected ? 'nearby-place nearby-place--selected' : 'nearby-place'}
-                        key={poi.id}
-                        onClick={() => onPoiSelect(poi)}
-                        type="button"
-                      >
-                        <span className={`nearby-place__icon nearby-place__icon--${poi.category}`}>
-                          <Icon size={15} />
-                        </span>
-                        <span className="nearby-place__text">
-                          <strong>{name}</strong>
-                          <small>{formatDistance(poi.distanceMeters)}</small>
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
+          {groupedPois.map(({ category, config, pois }) => (
+            <div className="nearby-group" key={category}>
+              <div className="nearby-group__title">
+                <span>{config.title}</span>
               </div>
-            )
-          })}
+              <div className="nearby-group__items">
+                {pois.map((poi) => {
+                  const isSelected = selectedPoi?.id === poi.id
+                  const name = poi.name.trim() || poiCategoryLabels[poi.category]
+
+                  return (
+                    <button
+                      className={isSelected ? 'nearby-place nearby-place--selected' : 'nearby-place'}
+                      key={poi.id}
+                      onClick={() => onPoiSelect(poi)}
+                      type="button"
+                    >
+                      <span className="nearby-place__text">
+                        <strong>{name}</strong>
+                        <small>{formatDistance(poi.distanceMeters)}</small>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       ) : loading ? (
         <p className="empty-copy">Buscando estabelecimentos próximos...</p>
@@ -562,11 +530,35 @@ export function PropertyDetailPage() {
   const description = loadedProperty.description?.trim()
   const contactName = getContactName(loadedProperty)
   const contactPhone = loadedProperty.contactPhone || loadedProperty.contactWhatsApp || ''
+  const contactEmail = getFirstString(loadedProperty, ['contactEmail', 'agentEmail', 'responsibleAgentEmail', 'companyEmail'])
+  const contactCompany = getFirstString(loadedProperty, ['companyName', 'realEstateName', 'agencyName', 'imobiliaria'])
+  const contactCreci = getFirstString(loadedProperty, ['creci', 'creciNumber', 'agentCreci', 'brokerCreci', 'responsibleAgentCreci'])
+  const contactPhoto = getFirstString(loadedProperty, [
+    'agentPhotoUrl',
+    'responsibleAgentPhotoUrl',
+    'brokerPhotoUrl',
+    'realtorPhotoUrl',
+    'contactPhotoUrl',
+    'avatarUrl',
+    'companyLogoUrl',
+    'logoUrl',
+    'brandImageUrl',
+  ])
+  const contactRole = contactCompany ? 'Imobiliária responsável' : 'Corretor imobiliário'
+  const hasContactDetails = Boolean(contactCompany || contactPhone || contactEmail)
   const whatsappHref = getWhatsAppHref(loadedProperty)
   const publishedAt = formatDate(loadedProperty.createdAt)
   const updatedAt = formatDate(loadedProperty.updatedAt)
   const interestCount = getInterestCount(loadedProperty)
   const seoImage = images[0] ?? '/assets/Larmap-logo-casas.png'
+  const specSummary = specs.map((item) => item.value).join(' • ')
+  const detailItems = [
+    { label: 'Tipo', value: getPropertyTypeLabel(property) },
+    ...specs,
+    publishedAt ? { label: 'Publicado', value: publishedAt } : null,
+    updatedAt ? { label: 'Atualizado', value: updatedAt } : null,
+    { label: 'Código', value: getPropertyCode(property) },
+  ].filter((item): item is PropertyDetailItem => Boolean(item?.value))
 
   function openLeadForm() {
     setLeadFormOpen(true)
@@ -694,7 +686,7 @@ export function PropertyDetailPage() {
         <section className="property-detail-hero">
           <div className="property-gallery">
             <div className={images.length ? 'property-gallery__main' : 'property-gallery__main property-gallery__main--empty'}>
-              <img alt={images.length ? property.title : ''} src={activeImage} />
+              <img alt={images.length ? property.title : ''} key={activeImage} src={activeImage} />
             </div>
             {images.length > 1 ? (
               <div className="property-gallery__thumbs" aria-label="Fotos do imóvel">
@@ -719,54 +711,35 @@ export function PropertyDetailPage() {
           </div>
 
           <div className="property-hero-copy">
-            <span className="eyebrow">{getTransactionLabel(property)}</span>
+            <div className="property-hero-copy__topline">
+              <span className="eyebrow">{getTransactionLabel(property)}</span>
+              <StatusBadge value={property.status} />
+            </div>
             <h1>{property.title}</h1>
-            <p>
-              <MapPin size={16} />
-              {compactLocation}
-            </p>
-            <strong>{priceLabel}</strong>
-            <StatusBadge value={property.status} />
+            <p className="property-hero-copy__location">{compactLocation}</p>
+            <strong className="property-hero-copy__price">{priceLabel}</strong>
+            {specSummary ? <p className="property-hero-copy__specs">{specSummary}</p> : null}
           </div>
         </section>
 
         <section className="property-detail-layout">
           <div className="property-detail-main">
-            <section className="property-section panel">
+            <section className="property-section">
               <div className="property-section__heading">
                 <span className="eyebrow">Informações principais</span>
                 <h2>Detalhes do imóvel</h2>
               </div>
-              <div className="property-spec-grid">
-                <span>
-                  <Building2 size={16} />
-                  {getPropertyTypeLabel(property)}
-                </span>
-                {specs.map(({ Icon, label }) => (
-                  <span key={label}>
-                    <Icon size={16} />
-                    {label}
-                  </span>
+              <dl className="property-detail-list">
+                {detailItems.map((item) => (
+                  <div key={item.label}>
+                    <dt>{item.label}</dt>
+                    <dd>{item.value}</dd>
+                  </div>
                 ))}
-              </div>
-              <div className="property-meta-list">
-                <span>Código: {getPropertyCode(property)}</span>
-                {publishedAt ? (
-                  <span>
-                    <CalendarDays size={14} />
-                    Publicado em {publishedAt}
-                  </span>
-                ) : null}
-                {updatedAt ? (
-                  <span>
-                    <CalendarDays size={14} />
-                    Atualizado em {updatedAt}
-                  </span>
-                ) : null}
-              </div>
+              </dl>
             </section>
 
-            <section className="property-section panel">
+            <section className="property-section property-section--description">
               <div className="property-section__heading">
                 <span className="eyebrow">Descrição</span>
                 <h2>Sobre este imóvel</h2>
@@ -776,13 +749,13 @@ export function PropertyDetailPage() {
               </p>
             </section>
 
-            <section className="property-section panel">
+            <section className="property-section">
               <div className="property-section__heading">
                 <span className="eyebrow">Localização</span>
                 <h2>Explore a região ao redor deste imóvel.</h2>
               </div>
               <p className="property-location-copy">{locationLabel}</p>
-              <div className="property-detail-map">
+              <PublicMapFrame className="property-detail-map" element="div">
                 <MapContainer
                   center={[property.latitude, property.longitude]}
                   className="property-detail-map__canvas"
@@ -822,7 +795,7 @@ export function PropertyDetailPage() {
                     </CircleMarker>
                   ) : null}
                 </MapContainer>
-              </div>
+              </PublicMapFrame>
             </section>
 
             <NearbyPlacesSection
@@ -834,17 +807,52 @@ export function PropertyDetailPage() {
             />
           </div>
 
-          <aside className="property-contact-card panel">
-            <span className="eyebrow">Responsável pelo anúncio</span>
-            <div className="property-contact-card__person">
-              <div className="property-contact-card__avatar">
-                <Building2 size={22} />
+          <aside className="property-contact-card">
+            <div className="property-contact-card__heading">
+              <span>Responsável pelo imóvel</span>
+            </div>
+
+            <div className="property-contact-card__profile">
+              <div className="property-contact-card__avatar" aria-hidden="true">
+                {contactPhoto ? (
+                  <img alt="" src={contactPhoto} />
+                ) : contactCompany ? (
+                  <Building2 size={19} />
+                ) : (
+                  <UserRound size={19} />
+                )}
               </div>
-              <div>
+              <div className="property-contact-card__identity">
                 <strong>{contactName}</strong>
-                <span>{contactPhone || 'Contato disponível pelo formulário'}</span>
+                <span>{contactRole}</span>
+                {contactCreci ? <span>CRECI {contactCreci}</span> : null}
               </div>
             </div>
+
+            {hasContactDetails ? (
+              <div className="property-contact-card__meta">
+                {contactCompany ? (
+                  <div>
+                    <span>Empresa</span>
+                    <strong>{contactCompany}</strong>
+                  </div>
+                ) : null}
+                {contactPhone ? (
+                  <div>
+                    <span>Telefone</span>
+                    <strong>{contactPhone}</strong>
+                  </div>
+                ) : null}
+                {contactEmail ? (
+                  <div>
+                    <span>Email</span>
+                    <strong>{contactEmail}</strong>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <p className="property-contact-card__trust">Conta ativa no LarMap</p>
 
             {interestCount !== null ? (
               <p className="property-interest-note">
@@ -853,24 +861,24 @@ export function PropertyDetailPage() {
             ) : null}
 
             <button className="primary-button property-contact-card__button" onClick={openLeadForm} type="button">
-              <Send size={16} />
               <span>Tenho interesse neste imóvel</span>
+              <span className="property-contact-card__button-arrow" aria-hidden="true">→</span>
             </button>
-            {whatsappHref ? (
-              <a className="secondary-button property-contact-card__button" href={whatsappHref} rel="noreferrer" target="_blank">
-                <MessageCircle size={16} />
-                <span>Mais informações do anunciante</span>
-              </a>
-            ) : (
-              <button className="secondary-button property-contact-card__button" onClick={openLeadForm} type="button">
-                <Phone size={16} />
-                <span>Mais informações do anunciante</span>
+
+            <div className="property-contact-card__actions">
+              {whatsappHref ? (
+                <a className="property-contact-card__action" href={whatsappHref} rel="noreferrer" target="_blank">
+                  Mais informações do anunciante →
+                </a>
+              ) : (
+                <button className="property-contact-card__action" onClick={openLeadForm} type="button">
+                  Mais informações do anunciante →
+                </button>
+              )}
+              <button className="property-contact-card__action" onClick={handleShare} type="button">
+                Compartilhar anúncio →
               </button>
-            )}
-            <button className="secondary-button secondary-button--quiet property-contact-card__button" onClick={handleShare} type="button">
-              <Share2 size={16} />
-              <span>Compartilhar</span>
-            </button>
+            </div>
             {shareNotice ? <span className="property-share-notice">{shareNotice}</span> : null}
           </aside>
         </section>
