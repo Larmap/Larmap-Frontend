@@ -7,6 +7,13 @@ export const PUBLIC_PROPERTY_ENDPOINTS = [
   '/properties',
 ] as const
 
+export const PUBLIC_PROFESSIONAL_ENDPOINTS = [
+  '/public/professionals',
+  '/professionals/public',
+  '/public/agents',
+  '/agents/public',
+] as const
+
 export function normalizeApiBaseUrl(value: string) {
   const baseUrl = value.replace(/\/+$/, '')
   return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`

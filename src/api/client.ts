@@ -14,12 +14,13 @@ import type {
   PerformanceMetric,
   PropertyPerformance,
   Property,
+  PublicProfessionalProfile,
   RegisterCompanyInput,
   UpdateCompanyInput,
   UpdateUserInput,
   User,
 } from '../types/api'
-import { normalizeApiBaseUrl, PUBLIC_PROPERTY_ENDPOINTS } from './publicEndpoints'
+import { normalizeApiBaseUrl, PUBLIC_PROFESSIONAL_ENDPOINTS, PUBLIC_PROPERTY_ENDPOINTS } from './publicEndpoints'
 
 export const API_BASE_URL = normalizeApiBaseUrl(
   import.meta.env.VITE_API_URL ??
@@ -88,6 +89,10 @@ async function request<T>(
     return payload.data
   }
 
+  if (payload !== null && payload !== undefined) {
+    return payload as T
+  }
+
   return undefined as T
 }
 
@@ -148,6 +153,25 @@ async function requestFirstAvailableProperties(token?: string | null) {
   return []
 }
 
+async function requestFirstAvailableProfessional(slug: string) {
+  let lastError: unknown
+  const encodedSlug = encodeURIComponent(slug)
+
+  for (const endpoint of PUBLIC_PROFESSIONAL_ENDPOINTS) {
+    try {
+      return await request<PublicProfessionalProfile>(`${endpoint}/${encodedSlug}`)
+    } catch (error) {
+      lastError = error
+      if (!(error instanceof ApiError) || ![401, 403, 404, 405, 501].includes(error.status)) {
+        throw error
+      }
+    }
+  }
+
+  if (lastError) throw lastError
+  throw new ApiError('Perfil profissional indisponível.', 404)
+}
+
 export const usersApi = {
   list: (token: string, limit = 10, offset = 0, role?: string) => {
     const params = new URLSearchParams({
@@ -199,6 +223,10 @@ export const propertiesApi = {
       method: 'DELETE',
       token,
     }),
+}
+
+export const professionalsApi = {
+  getPublic: (slug: string) => requestFirstAvailableProfessional(slug),
 }
 
 export const companyApi = {

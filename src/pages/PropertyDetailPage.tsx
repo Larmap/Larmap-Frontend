@@ -25,6 +25,7 @@ import { useNearbyPois } from '../hooks/useNearbyPois'
 import type { CreateLeadInput, Property, PropertyStatus } from '../types/api'
 import type { Poi, PoiCategory, PoiSearchBounds } from '../types/pois'
 import { buildLocalLead, upsertLocalLead } from '../utils/localLeads'
+import { getAdvertiserSlug } from '../utils/advertisers'
 import {
   findPropertyBySlug,
   getCompactLocationLabel,
@@ -132,14 +133,6 @@ function formatWhatsAppInput(value: string) {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
-}
-
-function getWhatsAppHref(property: Property) {
-  const phone = cleanPhone(property.contactWhatsApp || property.contactPhone)
-  if (!phone) return ''
-
-  const message = encodeURIComponent(`Olá! Tenho interesse no imóvel "${property.title}" pelo LarMap.`)
-  return `https://wa.me/${phone}?text=${message}`
 }
 
 function pluralize(value: number, singular: string, plural: string) {
@@ -545,8 +538,8 @@ export function PropertyDetailPage() {
     'brandImageUrl',
   ])
   const contactRole = contactCompany ? 'Imobiliária responsável' : 'Corretor imobiliário'
+  const advertiserProfileUrl = `/profissional/${getAdvertiserSlug(loadedProperty)}`
   const hasContactDetails = Boolean(contactCompany || contactPhone || contactEmail)
-  const whatsappHref = getWhatsAppHref(loadedProperty)
   const publishedAt = formatDate(loadedProperty.createdAt)
   const updatedAt = formatDate(loadedProperty.updatedAt)
   const interestCount = getInterestCount(loadedProperty)
@@ -866,15 +859,9 @@ export function PropertyDetailPage() {
             </button>
 
             <div className="property-contact-card__actions">
-              {whatsappHref ? (
-                <a className="property-contact-card__action" href={whatsappHref} rel="noreferrer" target="_blank">
-                  Mais informações do anunciante →
-                </a>
-              ) : (
-                <button className="property-contact-card__action" onClick={openLeadForm} type="button">
-                  Mais informações do anunciante →
-                </button>
-              )}
+              <Link className="property-contact-card__action" to={advertiserProfileUrl}>
+                Ver perfil profissional →
+              </Link>
               <button className="property-contact-card__action" onClick={handleShare} type="button">
                 Compartilhar anúncio →
               </button>

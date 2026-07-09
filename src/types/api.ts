@@ -110,6 +110,76 @@ export interface Property {
   updatedAt: string
 }
 
+export interface PublicProfessionalContact {
+  email?: string | null
+  instagram?: string | null
+  phone?: string | null
+  site?: string | null
+  whatsapp?: string | null
+}
+
+export interface PublicProfessionalStats {
+  activeProperties?: number | string | null
+  averageRating?: number | string | null
+  experienceYears?: number | string | null
+  interestedCount?: number | string | null
+  responseMinutes?: number | string | null
+  responseRate?: number | string | null
+  reviewCount?: number | string | null
+}
+
+export interface PublicProfessionalReview {
+  id?: string
+  author?: string | null
+  comment?: string | null
+  createdAt?: string | null
+  date?: string | null
+  name?: string | null
+  photo?: string | null
+  photoUrl?: string | null
+  rating?: number | string | null
+}
+
+export interface PublicProfessionalArea {
+  count?: number | string | null
+  name: string
+}
+
+export interface PublicProfessionalPropertyType {
+  count?: number | string | null
+  name: string
+  percent?: number | string | null
+}
+
+export interface PublicProfessionalProfile {
+  id: string
+  name: string
+  slug: string
+  role?: string | null
+  email?: string | null
+  phone?: string | null
+  whatsapp?: string | null
+  bio?: string | null
+  creci?: string | null
+  city?: string | null
+  state?: string | null
+  createdAt?: string | null
+  memberSince?: string | null
+  photo?: string | null
+  photoUrl?: string | null
+  avatarUrl?: string | null
+  logoUrl?: string | null
+  contact?: PublicProfessionalContact | null
+  company?: Partial<Company> | null
+  specialties?: string[] | null
+  achievements?: string[] | null
+  stats?: PublicProfessionalStats | null
+  reviews?: PublicProfessionalReview[] | null
+  properties?: Property[] | null
+  areas?: PublicProfessionalArea[] | null
+  propertyTypes?: PublicProfessionalPropertyType[] | null
+}
+
 export interface ApiSuccess<T> {
   success: true
   message?: string
