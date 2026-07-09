@@ -5,6 +5,7 @@ export type PoiCategory =
   | 'pharmacy'
   | 'food'
   | 'education'
+  | 'fitness'
   | 'leisure'
   | 'religion'
 

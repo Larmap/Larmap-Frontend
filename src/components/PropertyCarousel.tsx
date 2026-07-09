@@ -6,7 +6,9 @@ import { StatusBadge } from './StatusBadge'
 interface PropertyCarouselProps {
   title: string
   properties: Property[]
+  distanceLabels?: Map<string, string>
   emptyMessage?: string
+  isLoading?: boolean
   onPropertyClick?: (property: Property) => void
 }
 
@@ -99,9 +101,11 @@ function formatSpecs(property: Property) {
 }
 
 export function PropertyCarousel({
+  distanceLabels,
   title,
   properties,
   emptyMessage = 'Sem imóveis a exibir',
+  isLoading = false,
   onPropertyClick,
 }: PropertyCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -126,7 +130,7 @@ export function PropertyCarousel({
       el.removeEventListener('scroll', updateScrollState)
       resizeObserver.disconnect()
     }
-  }, [properties.length])
+  }, [isLoading, properties.length])
 
   function scroll(direction: 'left' | 'right') {
     const el = scrollRef.current
@@ -142,7 +146,7 @@ export function PropertyCarousel({
     <section className="carousel-section">
       <div className="carousel-header">
         <h2 className="carousel-title">{title}</h2>
-        {properties.length > 0 && (
+        {!isLoading && properties.length > 0 && (
           <div className="carousel-nav">
             <button
               className="carousel-arrow"
@@ -166,7 +170,26 @@ export function PropertyCarousel({
         )}
       </div>
 
-      {properties.length === 0 ? (
+      {isLoading ? (
+        <div className="carousel-track" ref={scrollRef}>
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div aria-hidden="true" className="carousel-card carousel-card--skeleton" key={index}>
+              <div className="carousel-card__media carousel-skeleton carousel-skeleton--media" />
+              <div className="carousel-card__info">
+                <span className="carousel-skeleton carousel-skeleton--price" />
+                <span className="carousel-skeleton carousel-skeleton--title" />
+                <span className="carousel-skeleton carousel-skeleton--line" />
+                <div className="carousel-card__specs">
+                  <span className="carousel-skeleton carousel-skeleton--pill" />
+                  <span className="carousel-skeleton carousel-skeleton--pill" />
+                  <span className="carousel-skeleton carousel-skeleton--pill" />
+                </div>
+                <span className="carousel-skeleton carousel-skeleton--button" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : properties.length === 0 ? (
         <div className="carousel-empty">
           <MapPinned size={22} />
           <span>{emptyMessage}</span>
@@ -176,6 +199,7 @@ export function PropertyCarousel({
           {properties.map((property) => {
             const image = getPropertyImages(property)[0]
             const specs = formatSpecs(property)
+            const distanceLabel = distanceLabels?.get(property.id)
 
             return (
               <button
@@ -205,6 +229,12 @@ export function PropertyCarousel({
                     <MapPin size={13} />
                     {getLocationLabel(property)}
                   </span>
+                  {distanceLabel ? (
+                    <span className="carousel-card__distance">
+                      <MapPin size={12} />
+                      {distanceLabel}
+                    </span>
+                  ) : null}
                   {specs.length ? (
                     <div className="carousel-card__specs">
                       {specs.map(({ icon: Icon, label }) => (

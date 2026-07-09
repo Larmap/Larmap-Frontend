@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Heart,
   Home,
+  Info,
   Layers,
   Loader2,
   Mail,
@@ -15,7 +16,6 @@ import {
   PanelLeftOpen,
   Phone,
   RefreshCw,
-  Search,
   Send,
   SlidersHorizontal,
   UserRound,
@@ -24,11 +24,12 @@ import {
 import { divIcon } from 'leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { ApiError, leadsApi, propertiesApi } from '../api/client'
 import type { GeocodingResult } from '../api/geocoding'
 import { CityAutocomplete } from '../components/CityAutocomplete'
 import { MapResizeHandler } from '../components/map/MapResizeHandler'
+import { MinimalLocationSearch } from '../components/MinimalLocationSearch'
 import { PoiCategoryControl } from '../components/map/PoiCategoryControl'
 import { PoiLayer } from '../components/map/PoiLayer'
 import { PoiViewportTracker, type PoiViewport } from '../components/map/PoiViewportTracker'
@@ -50,6 +51,7 @@ import type { CreateLeadInput, Property, PropertyStatus } from '../types/api'
 import type { PoiCategory } from '../types/pois'
 import { canUsePublicFavorites } from '../utils/userAccess'
 import { buildLocalLead, upsertLocalLead } from '../utils/localLeads'
+import { getPropertySlug } from '../utils/properties'
 import { readStorageValue } from '../utils/storage'
 
 const defaultCoordinates = {
@@ -1522,6 +1524,10 @@ export function PublicMapPage() {
                           <Send size={14} />
                           <span>Tenho interesse</span>
                         </button>
+                        <Link className="details-button" to={`/imovel/${getPropertySlug(property)}`}>
+                          <Info size={14} />
+                          <span>Mais informações deste imóvel</span>
+                        </Link>
                         {whatsAppHref ? (
                           <a className="whatsapp-button" href={whatsAppHref} rel="noreferrer" target="_blank">
                             <MessageCircle size={14} />
@@ -1556,22 +1562,15 @@ export function PublicMapPage() {
 
           <div className="map-search-toolbar" aria-label="Busca de localização">
             <div className="map-search-toolbar__inner">
-              <form className="map-location-search" onSubmit={handleLocationSubmit}>
-                <CityAutocomplete
-                  className="city-autocomplete--toolbar"
-                  inputId="toolbar-city-search"
-                  onChange={handleCitySearchValueChange}
-                  onClear={clearCitySelection}
-                  onSelect={(city) => applyCitySelection(city)}
-                  placeholder="Buscar cidade"
-                  selectedCity={selectedCity}
-                  value={citySearchValue}
-                />
-                <button className="primary-button map-search-button" disabled={geocoding} type="submit">
-                  {geocoding ? <Loader2 className="spin" size={16} /> : <Search size={16} />}
-                  <span>{geocoding ? 'Buscando' : 'Buscar'}</span>
-                </button>
-              </form>
+              <MinimalLocationSearch
+                className="map-location-search"
+                inputId="toolbar-city-search"
+                loading={geocoding}
+                onChange={handleCitySearchValueChange}
+                onSubmit={handleLocationSubmit}
+                placeholder="Buscar cidade"
+                value={citySearchValue}
+              />
 
             </div>
           </div>
@@ -1627,6 +1626,10 @@ export function PublicMapPage() {
                       <button className="map-popup__interest" onClick={() => openLeadForm(result)} type="button">
                         Tenho interesse
                       </button>
+                      <Link className="map-popup__link" to={`/imovel/${getPropertySlug(property)}`}>
+                        Mais informações deste imóvel
+                        <ExternalLink size={13} />
+                      </Link>
                       {getWhatsAppHref(property) ? (
                         <a
                           className="map-popup__link"

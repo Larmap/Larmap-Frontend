@@ -10,6 +10,7 @@ export const allPoiCategories: PoiCategory[] = [
   'pharmacy',
   'food',
   'education',
+  'fitness',
   'leisure',
   'religion',
 ]
@@ -18,6 +19,7 @@ export const poiCategoryLabels: Record<PoiCategory, string> = {
   education: 'Ensino',
   food: 'Alimentacao',
   fuel: 'Postos',
+  fitness: 'Academias',
   health: 'Hospitais e saude',
   leisure: 'Lazer',
   market: 'Mercados',
@@ -29,6 +31,7 @@ export const poiCategoryShortLabels: Record<PoiCategory, string> = {
   education: 'E',
   food: 'R',
   fuel: 'P',
+  fitness: 'A',
   health: 'S',
   leisure: 'L',
   market: 'M',
@@ -41,10 +44,11 @@ export const poiCategoryPriority: Record<PoiCategory, number> = {
   health: 1,
   pharmacy: 2,
   education: 3,
-  leisure: 4,
-  food: 5,
-  fuel: 6,
-  religion: 7,
+  food: 4,
+  fuel: 5,
+  fitness: 6,
+  leisure: 7,
+  religion: 8,
 }
 
 export function getPoiSearchLimit(zoom: number, densityMode: 'home' | 'map') {

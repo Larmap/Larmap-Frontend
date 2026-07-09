@@ -4,6 +4,7 @@ import {
   PUBLIC_PROPERTY_ENDPOINTS,
 } from '../../api/publicEndpoints'
 import type { Property } from '../../types/api'
+import { getPropertySlug } from '../../utils/properties'
 import { buildAbsoluteUrl, SITEMAP_FILES } from './config'
 import type { SitemapFile } from './types'
 
@@ -17,11 +18,6 @@ interface ApiFailure {
 interface ApiSuccess<T> {
   data: T
   success: true
-}
-
-interface PropertySlugCandidate {
-  seoSlug?: string | null
-  slug?: string | null
 }
 
 function getBuildApiBaseUrl() {
@@ -57,24 +53,6 @@ function normalizePropertyList(payload: unknown): Property[] {
   }
 
   return []
-}
-
-function createSlug(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
-function getPropertySlug(property: Property) {
-  const candidate = property as Property & PropertySlugCandidate
-  const explicitSlug = candidate.slug ?? candidate.seoSlug
-  if (explicitSlug?.trim()) return createSlug(explicitSlug)
-
-  const titleSlug = property.title ? createSlug(property.title) : ''
-  return [titleSlug, property.id].filter(Boolean).join('-')
 }
 
 function getPropertyLastmod(property: Property) {

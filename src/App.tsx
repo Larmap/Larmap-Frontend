@@ -19,6 +19,7 @@ import { HomePage } from './pages/HomePage'
 import { AboutPage, CookiesPolicyPage, PrivacyPolicyPage, TermsPage } from './pages/InstitutionalPages'
 import { LoginPage } from './pages/LoginPage'
 import { PartnerPage } from './pages/PartnerPage'
+import { PropertyDetailPage } from './pages/PropertyDetailPage'
 import { PublicMapPage } from './pages/PublicMapPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { getPublicPageConfig } from './seo/sitemap/config'
@@ -99,6 +100,7 @@ export function App() {
             path="/mapa"
             element={publicPageRoute('/mapa', <PublicMapPage />)}
           />
+          <Route path="/imovel/:slug" element={<PropertyDetailPage />} />
           <Route
             path="/sobre"
             element={publicPageRoute('/sobre', <AboutPage />)}

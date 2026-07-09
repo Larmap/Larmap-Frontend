@@ -1,6 +1,6 @@
-import { MapPin, Search } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet'
+import { LocateFixed, MapPin } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { CircleMarker, MapContainer, TileLayer, useMap } from 'react-leaflet'
 import { Link, useNavigate } from 'react-router-dom'
 import { propertiesApi } from '../api/client'
 import { MapResizeHandler } from '../components/map/MapResizeHandler'
@@ -9,6 +9,7 @@ import { PoiViewportTracker, type PoiViewport } from '../components/map/PoiViewp
 import { PublicFooter } from '../components/PublicFooter'
 import { PublicMapFrame } from '../components/PublicMapFrame'
 import { PublicNavbar } from '../components/PublicNavbar'
+import { MinimalLocationSearch } from '../components/MinimalLocationSearch'
 import { PropertyCarousel } from '../components/PropertyCarousel'
 import { allPoiCategories, getPoiSearchLimit, MIN_POI_ZOOM } from '../constants/pois'
 import { HOME_MAP_INITIAL_ZOOM, publicDetailedMapTileLayerUrl, publicMapAttribution } from '../constants/publicMap'
@@ -24,6 +25,14 @@ const homeMapCenter: [number, number] = [-22.9068, -43.1729]
 const HOME_POI_CATEGORIES = allPoiCategories
 const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
 const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
+const HOME_LOCATION_STORAGE_KEY = 'larmap.home.lastLocation'
+const HOME_GEOLOCATION_TIMEOUT_MS = 3000
+const HOME_NEARBY_CAROUSEL_LIMIT = 12
+
+interface MapCoordinates {
+  latitude: number
+  longitude: number
+}
 
 const previewDots = [
   { center: [-22.9519, -43.2105] as [number, number], color: '#57b44b' },
@@ -56,14 +65,186 @@ function getPropertyCity(property: Property) {
   return property.city || property.cidade || ''
 }
 
+function isValidCoordinate(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function toMapCenter(location: MapCoordinates): [number, number] {
+  return [location.latitude, location.longitude]
+}
+
+function toMapCoordinates(center: [number, number]): MapCoordinates {
+  return { latitude: center[0], longitude: center[1] }
+}
+
+function areCoordinatesClose(a: MapCoordinates, b: MapCoordinates) {
+  return Math.abs(a.latitude - b.latitude) < 0.00001 && Math.abs(a.longitude - b.longitude) < 0.00001
+}
+
+function readSavedHomeLocation() {
+  try {
+    const raw = window.localStorage.getItem(HOME_LOCATION_STORAGE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as Partial<MapCoordinates>
+    if (!isValidCoordinate(parsed.latitude) || !isValidCoordinate(parsed.longitude)) return null
+
+    return { latitude: parsed.latitude, longitude: parsed.longitude }
+  } catch {
+    return null
+  }
+}
+
+function saveHomeLocation(location: MapCoordinates) {
+  try {
+    window.localStorage.setItem(HOME_LOCATION_STORAGE_KEY, JSON.stringify(location))
+  } catch {
+    // Local storage can be unavailable in private contexts; the map should keep working.
+  }
+}
+
+function requestCurrentLocation() {
+  return new Promise<MapCoordinates>((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation unavailable'))
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
+      },
+      reject,
+      {
+        enableHighAccuracy: false,
+        maximumAge: 5 * 60 * 1000,
+        timeout: HOME_GEOLOCATION_TIMEOUT_MS,
+      },
+    )
+  })
+}
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180
+}
+
+function getDistanceKm(from: MapCoordinates, property: Property) {
+  if (!isValidCoordinate(property.latitude) || !isValidCoordinate(property.longitude)) return null
+
+  const earthRadiusKm = 6371
+  const latitudeDistance = toRadians(property.latitude - from.latitude)
+  const longitudeDistance = toRadians(property.longitude - from.longitude)
+  const fromLatitude = toRadians(from.latitude)
+  const toLatitude = toRadians(property.latitude)
+  const haversine =
+    Math.sin(latitudeDistance / 2) ** 2 +
+    Math.cos(fromLatitude) * Math.cos(toLatitude) * Math.sin(longitudeDistance / 2) ** 2
+
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+}
+
+function formatDistance(distanceKm: number) {
+  if (distanceKm < 1) {
+    return `${Math.max(1, Math.round(distanceKm * 1000)).toLocaleString('pt-BR')} m`
+  }
+
+  return `${distanceKm.toLocaleString('pt-BR', {
+    maximumFractionDigits: distanceKm < 10 ? 1 : 0,
+  })} km`
+}
+
+interface HomeMapLocationControllerProps {
+  knownLocation: MapCoordinates | null
+  locateRequestId: number
+  onLocationFound: (location: MapCoordinates) => void
+  onRequestingChange: (requesting: boolean) => void
+}
+
+function HomeMapLocationController({
+  knownLocation,
+  locateRequestId,
+  onLocationFound,
+  onRequestingChange,
+}: HomeMapLocationControllerProps) {
+  const map = useMap()
+  const initialRequestRef = useRef(false)
+  const latestRequestRef = useRef(0)
+  const mountedRef = useRef(true)
+
+  const requestAndFlyToLocation = useCallback(() => {
+    const requestId = latestRequestRef.current + 1
+    latestRequestRef.current = requestId
+    onRequestingChange(true)
+
+    requestCurrentLocation()
+      .then((location) => {
+        if (!mountedRef.current || latestRequestRef.current !== requestId) return
+
+        saveHomeLocation(location)
+        onLocationFound(location)
+        map.flyTo(toMapCenter(location), map.getZoom(), { duration: 0.65 })
+      })
+      .catch(() => {
+        // Permission denied, timeout and unsupported browsers should never block the Home.
+      })
+      .finally(() => {
+        if (mountedRef.current && latestRequestRef.current === requestId) {
+          onRequestingChange(false)
+        }
+      })
+  }, [map, onLocationFound, onRequestingChange])
+
+  useEffect(() => {
+    mountedRef.current = true
+
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (initialRequestRef.current) return
+    initialRequestRef.current = true
+
+    requestAndFlyToLocation()
+  }, [requestAndFlyToLocation])
+
+  useEffect(() => {
+    if (locateRequestId <= 0) return
+
+    if (knownLocation) {
+      map.flyTo(toMapCenter(knownLocation), map.getZoom(), { duration: 0.45 })
+    }
+
+    requestAndFlyToLocation()
+  }, [knownLocation, locateRequestId, map, requestAndFlyToLocation])
+
+  return null
+}
+
 export function HomePage() {
   const [locationQuery, setLocationQuery] = useState('')
   const [explainPosts, setExplainPosts] = useState<BlogPost[]>([])
   const [properties, setProperties] = useState<Property[]>([])
+  const [propertiesLoading, setPropertiesLoading] = useState(true)
   const [homePoiZoom, setHomePoiZoom] = useState(HOME_MAP_INITIAL_ZOOM)
   const [homePoiViewport, setHomePoiViewport] = useState<PoiViewport | null>(null)
+  const [initialHomeLocation] = useState<MapCoordinates | null>(() => readSavedHomeLocation())
+  const [userLocation, setUserLocation] = useState<MapCoordinates | null>(initialHomeLocation)
+  const [nearbyReferencePoint, setNearbyReferencePoint] = useState<MapCoordinates>(
+    () => initialHomeLocation ?? toMapCoordinates(homeMapCenter),
+  )
+  const [locateRequestId, setLocateRequestId] = useState(0)
+  const [isHomeLocating, setIsHomeLocating] = useState(false)
   const navigate = useNavigate()
   const isHomePoiZoomReady = homePoiZoom >= MIN_POI_ZOOM
+  const initialHomeMapCenter = useMemo(
+    () => (initialHomeLocation ? toMapCenter(initialHomeLocation) : homeMapCenter),
+    [initialHomeLocation],
+  )
   const nearbyPois = useNearbyPois({
     bounds: homePoiViewport?.bounds ?? null,
     categories: HOME_POI_CATEGORIES,
@@ -89,6 +270,8 @@ export function HomePage() {
         if (!ignore) setProperties(mergePropertyLists(data, readLocalAdminProperties()))
       } catch {
         if (!ignore) setProperties(readLocalAdminProperties())
+      } finally {
+        if (!ignore) setPropertiesLoading(false)
       }
     }
     load()
@@ -130,6 +313,26 @@ export function HomePage() {
       .slice(0, 12)
   }, [properties])
 
+  const nearbyPropertiesWithDistance = useMemo(() => {
+    return properties
+      .map((property) => {
+        const distanceKm = getDistanceKm(nearbyReferencePoint, property)
+        return distanceKm === null ? null : { distanceKm, property }
+      })
+      .filter((item): item is { distanceKm: number; property: Property } => item !== null)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+      .slice(0, HOME_NEARBY_CAROUSEL_LIMIT)
+  }, [nearbyReferencePoint, properties])
+
+  const nearbyProperties = useMemo(
+    () => nearbyPropertiesWithDistance.map((item) => item.property),
+    [nearbyPropertiesWithDistance],
+  )
+
+  const nearbyDistanceLabels = useMemo(() => {
+    return new Map(nearbyPropertiesWithDistance.map((item) => [item.property.id, formatDistance(item.distanceKm)]))
+  }, [nearbyPropertiesWithDistance])
+
   function handleLocationSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const q = locationQuery.trim()
@@ -151,6 +354,15 @@ export function HomePage() {
   const handleHomeViewportChange = useCallback((viewport: PoiViewport) => {
     setHomePoiZoom((current) => (Math.abs(current - viewport.zoom) < 0.05 ? current : viewport.zoom))
     setHomePoiViewport(viewport)
+    setNearbyReferencePoint((current) => {
+      const next = { latitude: viewport.center.latitude, longitude: viewport.center.longitude }
+      return areCoordinatesClose(current, next) ? current : next
+    })
+  }, [])
+
+  const handleHomeLocationFound = useCallback((location: MapCoordinates) => {
+    setUserLocation(location)
+    setNearbyReferencePoint((current) => (areCoordinatesClose(current, location) ? current : location))
   }, [])
 
   return (
@@ -168,21 +380,12 @@ export function HomePage() {
               Busque uma região, veja os imóveis disponíveis e fale direto com a imobiliária.
             </p>
 
-            <form className="home-search" onSubmit={handleLocationSubmit}>
-              <div className="home-search__bar">
-                <Search size={18} />
-                <input
-                  id="home-location-search"
-                  onChange={(e) => setLocationQuery(e.target.value)}
-                  placeholder="Cidade, bairro ou endereço"
-                  value={locationQuery}
-                />
-                <button className="home-search__btn" type="submit">
-                  <Search size={16} />
-                  Buscar
-                </button>
-              </div>
-            </form>
+            <MinimalLocationSearch
+              inputId="home-location-search"
+              onChange={setLocationQuery}
+              onSubmit={handleLocationSubmit}
+              value={locationQuery}
+            />
 
             <div className="home-hero__tags">
               <Link to="/aluguel" className="home-tag">
@@ -198,8 +401,18 @@ export function HomePage() {
           </div>
 
           <PublicMapFrame className="home-hero__map" element="div">
+            <button
+              aria-busy={isHomeLocating}
+              aria-label="Minha localização"
+              className={isHomeLocating ? 'home-map-locate home-map-locate--loading' : 'home-map-locate'}
+              onClick={() => setLocateRequestId((current) => current + 1)}
+              title="Minha localização"
+              type="button"
+            >
+              <LocateFixed size={17} />
+            </button>
             <MapContainer
-              center={homeMapCenter}
+              center={initialHomeMapCenter}
               className="home-hero__map-container"
               dragging
               doubleClickZoom
@@ -209,6 +422,12 @@ export function HomePage() {
             >
               <TileLayer attribution={publicMapAttribution} url={publicDetailedMapTileLayerUrl} />
               <MapResizeHandler />
+              <HomeMapLocationController
+                knownLocation={userLocation}
+                locateRequestId={locateRequestId}
+                onLocationFound={handleHomeLocationFound}
+                onRequestingChange={setIsHomeLocating}
+              />
               <PoiViewportTracker enabled onViewportChange={handleHomeViewportChange} />
               <PoiLayer densityMode="home" pois={isHomePoiZoomReady ? nearbyPois.pois : []} />
               {previewDots.map((dot) => (
@@ -238,14 +457,25 @@ export function HomePage() {
           <PropertyCarousel
             title="Últimos vistos"
             properties={recentlyViewed}
-            emptyMessage="Você ainda não visualizou nenhum imóvel"
+            emptyMessage="Nenhum imóvel encontrado"
+            isLoading={propertiesLoading}
             onPropertyClick={handlePropertyClick}
           />
 
           <PropertyCarousel
-            title="Destaques"
+            title="Imóveis em destaque"
             properties={highlights}
-            emptyMessage="Sem imóveis a exibir"
+            emptyMessage="Nenhum imóvel encontrado"
+            isLoading={propertiesLoading}
+            onPropertyClick={handlePropertyClick}
+          />
+
+          <PropertyCarousel
+            title="Imóveis perto de você"
+            properties={nearbyProperties}
+            distanceLabels={nearbyDistanceLabels}
+            emptyMessage="Nenhum imóvel encontrado"
+            isLoading={propertiesLoading}
             onPropertyClick={handlePropertyClick}
           />
         </div>

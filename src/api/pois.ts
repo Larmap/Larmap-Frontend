@@ -56,6 +56,10 @@ const categoryQueryParts: Record<PoiCategory, string[]> = {
   education: [
     'nwr["amenity"~"^(school|kindergarten|college|university)$"]',
   ],
+  fitness: [
+    'nwr["leisure"~"^(fitness_centre|fitness_station)$"]',
+    'nwr["sport"~"^(fitness|crossfit|gymnastics|pilates|yoga)$"]',
+  ],
   leisure: [
     'nwr["leisure"~"^(park|garden|playground)$"]',
     'nwr["place"="square"]',
@@ -69,6 +73,8 @@ const categoryQueryParts: Record<PoiCategory, string[]> = {
 
 const healthAmenities = ['hospital', 'clinic', 'doctors', 'dentist', 'health_post']
 const healthcareTags = ['hospital', 'clinic', 'doctor', 'centre', 'dentist', 'yes']
+const fitnessLeisureTags = ['fitness_centre', 'fitness_station']
+const fitnessSportTags = ['fitness', 'crossfit', 'gymnastics', 'pilates', 'yoga']
 const religionBuildings = ['church', 'cathedral', 'chapel', 'mosque', 'temple', 'synagogue']
 
 function normalizeCoordinate(value: number) {
@@ -155,6 +161,16 @@ function getPoiCategory(tags: Record<string, string>, allowedCategories: Set<Poi
     ['school', 'kindergarten', 'college', 'university'].includes(amenity)
   ) {
     return 'education'
+  }
+
+  if (
+    allowedCategories.has('fitness') &&
+    (
+      (leisure ? fitnessLeisureTags.includes(leisure) : false) ||
+      (tags.sport ? fitnessSportTags.includes(tags.sport) : false)
+    )
+  ) {
+    return 'fitness'
   }
 
   if (

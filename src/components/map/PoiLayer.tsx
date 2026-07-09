@@ -1,5 +1,5 @@
 import { divIcon, type DivIcon, type LatLngBounds, type Map as LeafletMap } from 'leaflet'
-import { Church, Fuel, GraduationCap, Hospital, Pill, ShoppingBasket, Trees, Utensils } from 'lucide-react'
+import { Church, Dumbbell, Fuel, GraduationCap, Hospital, Pill, ShoppingBasket, Trees, Utensils } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Marker, Pane, Popup, useMap, useMapEvents } from 'react-leaflet'
@@ -33,6 +33,9 @@ const POI_ICON_SVGS: Record<PoiCategory, string> = {
   ),
   education: renderToStaticMarkup(
     <GraduationCap aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
+  ),
+  fitness: renderToStaticMarkup(
+    <Dumbbell aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
   ),
   leisure: renderToStaticMarkup(
     <Trees aria-hidden="true" className="poi-map-marker__svg" size={15} strokeWidth={2.2} />,
