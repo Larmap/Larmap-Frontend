@@ -167,19 +167,19 @@ export function BlogEditor({ onChange, value }: BlogEditorProps) {
   }
 
   function addImage() {
-    const url = window.prompt('URL da imagem mockada', 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2')
+    const url = window.prompt('URL da imagem', 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2')
     if (!url?.trim() || !editor) return
     editor.chain().focus().setImage({ src: url.trim() }).run()
   }
 
   function addVideo() {
-    const url = window.prompt('URL do video YouTube mockado', 'https://www.youtube.com/watch?v=ysz5S6PUM-U')
+    const url = window.prompt('URL do vídeo do YouTube', 'https://www.youtube.com/watch?v=ysz5S6PUM-U')
     if (!url?.trim() || !editor) return
     editor.chain().focus().setYoutubeVideo({ src: url.trim() }).run()
   }
 
   function addPdf() {
-    const url = window.prompt('URL do PDF mockado', 'https://example.com/checklist-compra-imovel.pdf')
+    const url = window.prompt('URL do PDF', 'https://example.com/checklist-compra-imovel.pdf')
     if (!url?.trim() || !editor) return
 
     const fileName = url.split('/').pop() || 'documento.pdf'

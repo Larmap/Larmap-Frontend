@@ -1,0 +1,239 @@
+{
+  "browserErrors": [],
+  "creation": {
+    "path": "/admin/blog/posts",
+    "toast": "Rascunho salvo.",
+    "created": true
+  },
+  "editorChecks": {
+    "titleValue": "Como financiar um imóvel em 2026: o que você precisa saber antes de começar",
+    "toolbarButtons": 23,
+    "toolbarVisible": true,
+    "stickySidebar": "sticky",
+    "summaryLimit": 220,
+    "layout": [
+      {
+        "selector": ".blog-admin-shell",
+        "left": 0,
+        "right": 1440,
+        "width": 1440,
+        "minWidth": "0px",
+        "grid": "248px 1192px"
+      },
+      {
+        "selector": ".blog-admin-workspace",
+        "left": 248,
+        "right": 1440,
+        "width": 1192,
+        "minWidth": "0px",
+        "grid": "none"
+      },
+      {
+        "selector": ".blog-admin-content",
+        "left": 248,
+        "right": 1440,
+        "width": 1192,
+        "minWidth": "auto",
+        "grid": "none"
+      },
+      {
+        "selector": ".admin-editor-layout",
+        "left": 286,
+        "right": 1402,
+        "width": 1116,
+        "minWidth": "auto",
+        "grid": "765.797px 328.203px"
+      },
+      {
+        "selector": ".admin-editor-main",
+        "left": 286,
+        "right": 1052,
+        "width": 766,
+        "minWidth": "0px",
+        "grid": "765.797px"
+      },
+      {
+        "selector": ".admin-editor-sidebar",
+        "left": 1074,
+        "right": 1402,
+        "width": 328,
+        "minWidth": "auto",
+        "grid": "328.203px"
+      },
+      {
+        "selector": ".blog-editor",
+        "left": 304,
+        "right": 1034,
+        "width": 730,
+        "minWidth": "0px",
+        "grid": "none"
+      },
+      {
+        "selector": ".blog-editor__toolbar",
+        "left": 305,
+        "right": 1033,
+        "width": 728,
+        "minWidth": "0px",
+        "grid": "none"
+      }
+    ]
+  },
+  "interactionChecks": {
+    "deleteDialog": "Excluir publicação?",
+    "mediaPicker": {
+      "open": true,
+      "images": 8
+    },
+    "previewModal": true,
+    "uploadDialog": true
+  },
+  "mobileDrawer": true,
+  "publicRoute": {
+    "path": "/blog",
+    "hasAdminShell": false,
+    "hasPublicHeader": true
+  },
+  "routes": [
+    {
+      "path": "/admin/blog",
+      "title": "LarMap Explica",
+      "overflow": false,
+      "overflowElements": [],
+      "unlabeledIconButtons": 0,
+      "primaryColor": "rgb(27, 113, 63)",
+      "viewport": "1440x900"
+    },
+    {
+      "path": "/admin/blog/posts",
+      "title": "Publicações",
+      "overflow": false,
+      "overflowElements": [],
+      "unlabeledIconButtons": 0,
+      "primaryColor": "rgb(27, 113, 63)",
+      "viewport": "1024x820"
+    },
+    {
+      "path": "/admin/blog/categories",
+      "title": "Categorias",
+      "overflow": false,
+      "overflowElements": [],
+      "unlabeledIconButtons": 0,
+      "primaryColor": "rgba(0, 0, 0, 0)",
+      "viewport": "768x820"
+    },
+    {
+      "path": "/admin/blog/media",
+      "title": "Biblioteca de mídia",
+      "overflow": false,
+      "overflowElements": [],
+      "unlabeledIconButtons": 0,
+      "primaryColor": "rgb(27, 113, 63)",
+      "viewport": "768x820"
+    },
+    {
+      "path": "/admin/blog/posts/new",
+      "title": "Criar nova publicação",
+      "overflow": false,
+      "overflowElements": [
+        {
+          "className": "blog-editor__group",
+          "right": 413,
+          "tag": "DIV"
+        },
+        {
+          "className": "blog-editor__tool",
+          "right": 408,
+          "tag": "BUTTON"
+        },
+        {
+          "className": {},
+          "right": 400,
+          "tag": "svg"
+        },
+        {
+          "className": {},
+          "right": 398,
+          "tag": "path"
+        },
+        {
+          "className": {},
+          "right": 398,
+          "tag": "path"
+        },
+        {
+          "className": {},
+          "right": 398,
+          "tag": "path"
+        },
+        {
+          "className": "blog-editor__group blog-editor__group--selects",
+          "right": 710,
+          "tag": "DIV"
+        },
+        {
+          "className": "",
+          "right": 569,
+          "tag": "LABEL"
+        }
+      ],
+      "unlabeledIconButtons": 0,
+      "primaryColor": "rgb(27, 113, 63)",
+      "viewport": "390x844"
+    },
+    {
+      "path": "/admin/blog/posts/post-financiamento-imovel-2026/edit",
+      "title": "Editar publicação",
+      "overflow": false,
+      "overflowElements": [
+        {
+          "className": "blog-editor__group",
+          "right": 1447,
+          "tag": "DIV"
+        },
+        {
+          "className": "blog-editor__tool",
+          "right": 1442,
+          "tag": "BUTTON"
+        },
+        {
+          "className": "blog-editor__group",
+          "right": 1562,
+          "tag": "DIV"
+        },
+        {
+          "className": "blog-editor__tool",
+          "right": 1489,
+          "tag": "BUTTON"
+        },
+        {
+          "className": {},
+          "right": 1481,
+          "tag": "svg"
+        },
+        {
+          "className": {},
+          "right": 1479,
+          "tag": "path"
+        },
+        {
+          "className": "blog-editor__tool",
+          "right": 1523,
+          "tag": "BUTTON"
+        },
+        {
+          "className": {},
+          "right": 1515,
+          "tag": "svg"
+        }
+      ],
+      "unlabeledIconButtons": 0,
+      "primaryColor": "rgb(27, 113, 63)",
+      "viewport": "1440x900"
+    }
+  ],
+  "userMenu": [
+    "Minha conta",
+    "Ver site",
+    "Sair"
+  ]
+}

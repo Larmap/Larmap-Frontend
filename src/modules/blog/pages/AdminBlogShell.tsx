@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Outlet, useOutletContext } from 'react-router-dom'
 import { AdminSidebar } from '../components/AdminSidebar'
 import { AdminTopbar } from '../components/AdminTopbar'
@@ -11,12 +12,13 @@ export function useBlogAdminWorkspace() {
 
 export function AdminBlogShell() {
   const adminData = useBlogAdminData()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
     <div className="blog-admin-shell">
-      <AdminSidebar />
+      <AdminSidebar onClose={() => setSidebarOpen(false)} open={sidebarOpen} />
       <div className="blog-admin-workspace">
-        <AdminTopbar onRefresh={adminData.reload} />
+        <AdminTopbar onMenuOpen={() => setSidebarOpen(true)} />
         <main className="blog-admin-content">
           <Outlet context={adminData} />
         </main>

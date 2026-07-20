@@ -24,9 +24,9 @@ export const BLOG_FONT_OPTIONS = [
 export const BLOG_FONT_SIZE_OPTIONS = ['12', '14', '16', '18', '24', '30', '36', '48'] as const
 
 export const BLOG_STATUS_LABELS: Record<BlogStatus, string> = {
-  draft: 'Draft',
-  published: 'Published',
-  scheduled: 'Scheduled',
+  draft: 'Rascunho',
+  published: 'Publicado',
+  scheduled: 'Agendado',
 }
 
 export const BLOG_STATUS_DESCRIPTIONS: Record<BlogStatus, string> = {
@@ -36,9 +36,9 @@ export const BLOG_STATUS_DESCRIPTIONS: Record<BlogStatus, string> = {
 }
 
 export const BLOG_ADMIN_PAGE_TITLES: Record<string, string> = {
-  '/admin/blog': 'Dashboard',
+  '/admin/blog': 'LarMap Explica',
   '/admin/blog/categories': 'Categorias',
   '/admin/blog/media': 'Mídias',
-  '/admin/blog/posts': 'Postagens',
-  '/admin/blog/posts/new': 'Nova postagem',
+  '/admin/blog/posts': 'Publicações',
+  '/admin/blog/posts/new': 'Criar publicação',
 }

@@ -31,13 +31,16 @@ export function formatBlogDate(value?: string) {
 export function formatBlogDateTime(value?: string) {
   if (!value) return 'Sem agendamento'
 
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit',
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(value))
+  }).formatToParts(new Date(value))
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+
+  return `${getPart('day')} ${getPart('month')} ${getPart('year')}, ${getPart('hour')}:${getPart('minute')}`
 }
 
 export function getPostDisplayDate(post: Pick<BlogPost, 'publishedAt' | 'scheduledFor' | 'updatedAt'>) {
