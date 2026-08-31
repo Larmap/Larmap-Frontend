@@ -1,6 +1,7 @@
 import { ExternalLink, FileText, Images, LayoutDashboard, Tags, X } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 import { BrandLogo } from '../../../components/BrandLogo'
+import { useAuth } from '../../../context/AuthContext'
 
 const adminBlogNavItems = [
   { icon: LayoutDashboard, label: 'Visão geral', to: '/admin/blog' },
@@ -10,6 +11,9 @@ const adminBlogNavItems = [
 ]
 
 export function AdminSidebar({ onClose, open = false }: { onClose?: () => void; open?: boolean }) {
+  const { canAccessBlogAdmin, canAccessCompanyAdmin } = useAuth()
+  const visibleItems = canAccessBlogAdmin() ? adminBlogNavItems : []
+
   return (
     <>
       {open ? <button aria-label="Fechar menu" className="blog-admin-sidebar__backdrop" onClick={onClose} type="button" /> : null}
@@ -20,7 +24,7 @@ export function AdminSidebar({ onClose, open = false }: { onClose?: () => void; 
         </div>
         <span className="blog-admin-sidebar__module">LarMap Explica</span>
         <nav className="blog-admin-sidebar__nav" aria-label="Administração do LarMap Explica">
-          {adminBlogNavItems.map((item) => {
+          {visibleItems.map((item) => {
             const Icon = item.icon
             return (
               <NavLink className={({ isActive }) => isActive ? 'blog-admin-sidebar__link blog-admin-sidebar__link--active' : 'blog-admin-sidebar__link'} end={item.to === '/admin/blog'} key={item.to} onClick={onClose} to={item.to}>
@@ -29,6 +33,9 @@ export function AdminSidebar({ onClose, open = false }: { onClose?: () => void; 
             )
           })}
         </nav>
+        {canAccessCompanyAdmin() ? (
+          <Link className="blog-admin-sidebar__link blog-admin-sidebar__link--external" onClick={onClose} to="/admin/dashboard"><LayoutDashboard size={18} /><span>Administração da imobiliária</span></Link>
+        ) : null}
         <Link className="blog-admin-sidebar__link blog-admin-sidebar__link--external" onClick={onClose} target="_blank" to="/blog"><ExternalLink size={18} /><span>Ver LarMap Explica</span></Link>
       </aside>
     </>

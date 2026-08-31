@@ -6,6 +6,7 @@ import { PublicRoute } from './components/PublicRoute'
 import { ScrollToTop } from './components/ScrollToTop'
 import { SEO } from './components/SEO'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { featureFlags } from './config/features'
 import { AdminAgentsPage } from './pages/AdminAgentsPage'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { AdminLeadsPage } from './pages/AdminLeadsPage'
@@ -19,6 +20,7 @@ import { HomePage } from './pages/HomePage'
 import { AboutPage, CookiesPolicyPage, PrivacyPolicyPage, TermsPage } from './pages/InstitutionalPages'
 import { LoginPage } from './pages/LoginPage'
 import { PartnerPage } from './pages/PartnerPage'
+import { PersonalAccountPage } from './pages/PersonalAccountPage'
 import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage'
 import { PropertyDetailPage } from './pages/PropertyDetailPage'
 import { PublicMapPage } from './pages/PublicMapPage'
@@ -49,7 +51,8 @@ const AdminBlogMediaPage = lazy(() =>
 )
 
 function AdminEntry() {
-  const { adminHomePath, isAuthenticated } = useAuth()
+  const { adminHomePath, isAuthenticated, isAuthLoading } = useAuth()
+  if (isAuthLoading) return <p className="route-loading">Validando sessão...</p>
   return <Navigate to={isAuthenticated ? adminHomePath : '/admin/login'} replace />
 }
 
@@ -79,7 +82,12 @@ export function App() {
             path="/"
             element={publicPageRoute('/', <HomePage />)}
           />
-          <Route path="/favoritos" element={<FavoritesPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/minha-conta" element={<PersonalAccountPage />} />
+          </Route>
+          <Route element={<ProtectedRoute accessRole="COMMON" />}>
+            <Route path="/favoritos" element={<FavoritesPage />} />
+          </Route>
           <Route
             path="/aluguel"
             element={publicPageRoute('/aluguel', <PublicMapPage />)}
@@ -135,27 +143,33 @@ export function App() {
           </Route>
 
           <Route element={<ProtectedRoute loginPath="/admin/login" />}>
-            <Route element={<AdminShell />}>
-              <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-              <Route path="/admin/imoveis" element={<AdminPropertiesPage />} />
-              <Route path="/admin/corretores" element={<AdminAgentsPage />} />
-              <Route path="/admin/leads" element={<AdminLeadsPage />} />
-              <Route path="/admin/desempenho" element={<AdminPerformancePage />} />
-              <Route path="/admin/configuracoes" element={<AdminSettingsPage />} />
-              <Route path="/admin/corretor" element={<BrokerDashboardPage />} />
+            <Route element={<ProtectedRoute permission="company:manage" />}>
+              <Route element={<AdminShell />}>
+                <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+                <Route path="/admin/imoveis" element={<AdminPropertiesPage />} />
+                <Route path="/admin/corretores" element={<AdminAgentsPage />} />
+                <Route path="/admin/leads" element={<AdminLeadsPage />} />
+                <Route path="/admin/desempenho" element={<AdminPerformancePage />} />
+                <Route path="/admin/configuracoes" element={<AdminSettingsPage />} />
+                <Route path="/admin/corretor" element={<BrokerDashboardPage />} />
+              </Route>
             </Route>
 
-            <Route element={lazyRoute(<AdminBlogShell />)}>
-              <Route path="/admin/blog" element={lazyRoute(<AdminBlogDashboardPage />)} />
-              <Route path="/admin/blog/posts" element={lazyRoute(<AdminBlogPostsPage />)} />
-              <Route path="/admin/blog/posts/new" element={lazyRoute(<AdminBlogPostFormPage />)} />
-              <Route path="/admin/blog/posts/:id/edit" element={lazyRoute(<AdminBlogPostFormPage />)} />
-              <Route path="/admin/blog/categories" element={lazyRoute(<AdminBlogCategoriesPage />)} />
-              <Route path="/admin/blog/media" element={lazyRoute(<AdminBlogMediaPage />)} />
-            </Route>
+            {featureFlags.BLOG_ADMIN ? (
+              <Route element={<ProtectedRoute permission="blog:manage" />}>
+                <Route element={lazyRoute(<AdminBlogShell />)}>
+                  <Route path="/admin/blog" element={lazyRoute(<AdminBlogDashboardPage />)} />
+                  <Route path="/admin/blog/posts" element={lazyRoute(<AdminBlogPostsPage />)} />
+                  <Route path="/admin/blog/posts/new" element={lazyRoute(<AdminBlogPostFormPage />)} />
+                  <Route path="/admin/blog/posts/:id/edit" element={lazyRoute(<AdminBlogPostFormPage />)} />
+                  <Route path="/admin/blog/categories" element={lazyRoute(<AdminBlogCategoriesPage />)} />
+                  <Route path="/admin/blog/media" element={lazyRoute(<AdminBlogMediaPage />)} />
+                </Route>
+              </Route>
+            ) : null}
           </Route>
 
-          <Route path="/app" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/app" element={<AdminEntry />} />
           <Route path="/app/users" element={<Navigate to="/admin/corretores" replace />} />
           <Route path="/app/properties" element={<Navigate to="/admin/imoveis" replace />} />
           <Route path="/users" element={<Navigate to="/admin/corretores" replace />} />

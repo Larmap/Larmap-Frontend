@@ -16,7 +16,7 @@ import { HOME_MAP_INITIAL_ZOOM, publicDetailedMapTileLayerUrl, publicMapAttribut
 import { useNearbyPois } from '../hooks/useNearbyPois'
 import { getRecentlyViewed, addRecentlyViewed } from '../hooks/useRecentlyViewed'
 import { LarMapExplainSection } from '../modules/blog/components/LarMapExplainSection'
-import { blogService } from '../modules/blog/services/blog.service'
+import { publicBlogService } from '../modules/blog/services/publicBlog.service'
 import type { BlogPost } from '../modules/blog/types'
 import type { Property } from '../types/api'
 import { readStorageValue } from '../utils/storage'
@@ -283,7 +283,7 @@ export function HomePage() {
 
     async function loadBlogPosts() {
       try {
-        const posts = await blogService.getPosts({ limit: 3, status: 'published' })
+        const posts = await publicBlogService.getPosts({ limit: 3, status: 'published' })
         if (!ignore) setExplainPosts(posts)
       } catch {
         if (!ignore) setExplainPosts([])

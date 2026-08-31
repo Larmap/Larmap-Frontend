@@ -371,7 +371,7 @@ export function ProfessionalProfilePage() {
   async function handleShare() {
     if (!profile) return
 
-    const profileSlug = profile.slug || slug || ''
+    const profileSlug = profile.publicSlug || slug || ''
     const url = `${window.location.origin}/profissional/${profileSlug}`
     const shareData = {
       text: `${profile.name} no LarMap`,
@@ -425,7 +425,7 @@ export function ProfessionalProfilePage() {
     )
   }
 
-  const profileUrl = `/profissional/${profile.slug || slug}`
+  const profileUrl = `/profissional/${profile.publicSlug || slug}`
   const contactHref = getWhatsAppHref(profile) || '#contato'
   const contactTarget = contactHref.startsWith('http') ? '_blank' : undefined
   const schema = {

@@ -23,25 +23,17 @@ import {
   Undo2,
   Video,
 } from 'lucide-react'
-import { useEffect, type ReactNode } from 'react'
-import Highlight from '@tiptap/extension-highlight'
-import Image from '@tiptap/extension-image'
-import Link from '@tiptap/extension-link'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import Placeholder from '@tiptap/extension-placeholder'
-import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table'
-import TaskItem from '@tiptap/extension-task-item'
-import TaskList from '@tiptap/extension-task-list'
-import TextAlign from '@tiptap/extension-text-align'
-import { BackgroundColor, Color, FontFamily, FontSize, TextStyle } from '@tiptap/extension-text-style'
-import Underline from '@tiptap/extension-underline'
-import Youtube from '@tiptap/extension-youtube'
 import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
 import { BLOG_FONT_OPTIONS, BLOG_FONT_SIZE_OPTIONS } from '../constants'
+import { createBlogEditorExtensions } from './blogEditorExtensions'
+import { toEditorContent } from '../utils/content'
+import type { BlogContent, TiptapDocument } from '../types'
 
 interface BlogEditorProps {
-  onChange: (value: string) => void
-  value: string
+  onChange: (value: TiptapDocument) => void
+  value: BlogContent
 }
 
 interface ToolbarButtonProps {
@@ -82,56 +74,24 @@ function ToolbarButton({ active = false, children, label, onClick }: ToolbarButt
 }
 
 export function BlogEditor({ onChange, value }: BlogEditorProps) {
+  const extensions = useMemo(() => createBlogEditorExtensions(), [])
+  const editorContent = useMemo(() => toEditorContent(value), [value])
   const editor = useEditor({
-    content: value,
+    content: editorContent,
     editorProps: {
       attributes: {
         class: 'blog-editor__content',
       },
     },
     extensions: [
-      StarterKit.configure({
-        link: false,
-        underline: false,
-      }),
-      Underline,
-      TextStyle,
-      Color,
-      BackgroundColor,
-      FontFamily,
-      FontSize,
-      Highlight.configure({ multicolor: true }),
-      Link.configure({
-        HTMLAttributes: {
-          rel: 'noopener noreferrer',
-          target: '_blank',
-        },
-        openOnClick: false,
-      }),
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Image.configure({
-        HTMLAttributes: {
-          class: 'blog-editor-image',
-        },
-      }),
-      Youtube.configure({
-        controls: true,
-        height: 360,
-        width: 640,
-      }),
-      Table.configure({ resizable: true }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      TaskList,
-      TaskItem.configure({ nested: true }),
+      ...extensions,
       Placeholder.configure({
         placeholder: 'Escreva o conteúdo da postagem...',
       }),
     ],
     onUpdate: ({ editor: currentEditor }) => {
       if (currentEditor.isDestroyed) return
-      onChange(currentEditor.getHTML())
+      onChange(currentEditor.getJSON() as TiptapDocument)
     },
     shouldRerenderOnTransaction: true,
   })
@@ -139,8 +99,13 @@ export function BlogEditor({ onChange, value }: BlogEditorProps) {
   useEffect(() => {
     if (!editor) return
     if (editor.isDestroyed) return
-    if (editor.getHTML() === value) return
-    editor.commands.setContent(value, { emitUpdate: false })
+    const nextContent = toEditorContent(value)
+    if (typeof nextContent === 'string') {
+      if (editor.getHTML() === nextContent) return
+    } else if (JSON.stringify(editor.getJSON()) === JSON.stringify(nextContent)) {
+      return
+    }
+    editor.commands.setContent(nextContent, { emitUpdate: false })
   }, [editor, value])
 
   if (!editor) {

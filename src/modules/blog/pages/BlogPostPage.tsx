@@ -2,9 +2,11 @@ import { Link, useParams } from 'react-router-dom'
 import { PublicFooter } from '../../../components/PublicFooter'
 import { PublicNavbar } from '../../../components/PublicNavbar'
 import { SEO } from '../../../components/SEO'
+import { BlogPostContent } from '../components/BlogPostContent'
 import { PostFooter } from '../components/PostFooter'
 import { PostHeader } from '../components/PostHeader'
 import { RelatedPosts } from '../components/RelatedPosts'
+import { SaveArticleButton } from '../components/SaveArticleButton'
 import { useBlogPost } from '../hooks/useBlogPost'
 import { useBlogPosts } from '../hooks/useBlogPosts'
 import { getRelatedBlogPosts } from '../utils'
@@ -53,7 +55,12 @@ export function BlogPostPage() {
       {post ? (
         <>
           <PostHeader post={post} />
-          <article className="blog-post-body" dangerouslySetInnerHTML={{ __html: post.content }} />
+          <div className="blog-post-save-bar">
+            <SaveArticleButton post={post} />
+          </div>
+          <article className="blog-post-body">
+            <BlogPostContent content={post.content} />
+          </article>
           <div className="blog-post-shell">
             <PostFooter post={post} />
             <RelatedPosts posts={relatedPosts} />

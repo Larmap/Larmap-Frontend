@@ -4,10 +4,21 @@ interface BrandLogoProps {
   className?: string
   compact?: boolean
   to?: string
+  variant?: 'full' | 'symbol'
 }
 
-export function BrandLogo({ className = '', compact = false, to }: BrandLogoProps) {
-  const classes = ['brand-logo', compact ? 'brand-logo--compact' : '', className]
+export function BrandLogo({
+  className = '',
+  compact = false,
+  to,
+  variant = 'full',
+}: BrandLogoProps) {
+  const classes = [
+    'brand-logo',
+    compact ? 'brand-logo--compact' : '',
+    variant === 'symbol' ? 'brand-logo--symbol' : '',
+    className,
+  ]
     .filter(Boolean)
     .join(' ')
 
@@ -19,10 +30,12 @@ export function BrandLogo({ className = '', compact = false, to }: BrandLogoProp
         src="/assets/icon-larmap.png"
         alt=""
       />
-      <span className="brand-logo__name">
-        <span className="brand-logo__name-lar">Lar</span>
-        <span className="brand-logo__name-map">Map</span>
-      </span>
+      {variant === 'full' ? (
+        <span className="brand-logo__name">
+          <span className="brand-logo__name-lar">Lar</span>
+          <span className="brand-logo__name-map">Map</span>
+        </span>
+      ) : null}
     </>
   )
 

@@ -3,12 +3,15 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AdminPageHeader, AdminToast, ConfirmDialog, SaveStatus, type SaveState } from '../components/AdminUI'
 import { BlogEditor } from '../components/BlogEditor'
+import { BlogPostContent } from '../components/BlogPostContent'
 import { ImageSelector } from '../components/ImageSelector'
 import { OrganizationPanel, PublicationPanel } from '../components/PublicationPanels'
 import { blogService } from '../services/blog.service'
 import type { BlogPost, BlogPostFormValues, BlogPostInput, BlogStatus, MediaFile } from '../types'
 import { buildPublishDateTime, createBlogSlug, tagsTextToNames } from '../utils'
+import { hasBlogContent, toTiptapDocument } from '../utils/content'
 import { useBlogAdminWorkspace } from './AdminBlogShell'
+import { useAuth } from '../../../context/AuthContext'
 
 function pad(value: number) { return String(value).padStart(2, '0') }
 function getDefaultSchedule() {
@@ -31,7 +34,8 @@ function createFormFromPost(post: BlogPost, media: MediaFile[]): BlogPostFormVal
 export function AdminBlogPostFormPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { authors, categories, media, reload } = useBlogAdminWorkspace()
+  const { authors, categories, media, posts, loading: loadingWorkspace, reload } = useBlogAdminWorkspace()
+  const { token } = useAuth()
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null)
   const [form, setForm] = useState<BlogPostFormValues>(() => createEmptyForm(media))
   const [error, setError] = useState('')
@@ -44,15 +48,16 @@ export function AdminBlogPostFormPage() {
 
   useEffect(() => {
     let active = true
-    async function loadPost() {
+    function loadPost() {
       if (!id) { setLoadingPost(false); return }
+      if (loadingWorkspace) return
       setLoadingPost(true)
-      const post = await blogService.getPost(id)
+      const post = posts.find((item) => item.id === id) ?? null
       if (active) { setEditingPost(post); setError(post ? '' : 'Publicação não encontrada.'); setLoadingPost(false) }
     }
-    void loadPost()
+    loadPost()
     return () => { active = false }
-  }, [id])
+  }, [id, loadingWorkspace, posts])
 
   useEffect(() => {
     if (editingPost) { setForm(createFormFromPost(editingPost, media)); return }
@@ -88,20 +93,22 @@ export function AdminBlogPostFormPage() {
   function handleTitleChange(value: string) { updateForm({ slug: createBlogSlug(value), title: value }) }
 
   function buildPayload(statusOverride?: BlogStatus): BlogPostInput | null {
-    const title = form.title.trim(); const content = form.content.trim(); const summary = form.summary.trim()
+    const title = form.title.trim(); const content = hasBlogContent(form.content) ? toTiptapDocument(form.content) : null; const summary = form.summary.trim()
     if (!title || !summary || !content || !form.categoryId || !form.authorId) { setError('Preencha título, resumo, categoria, autor e conteúdo.'); return null }
     const status = statusOverride ?? (form.publishImmediately ? 'published' : 'scheduled')
     const scheduledFor = status === 'scheduled' ? buildPublishDateTime(form.publishDate, form.publishTime) : undefined
     if (status === 'scheduled' && !scheduledFor) { setError('Informe data e horário para agendar a publicação.'); return null }
-    return { authorId: form.authorId, categoryId: form.categoryId, content, coverImageId: form.coverImageUrl.trim() ? undefined : form.coverImageId, coverImageUrl: form.coverImageUrl.trim() || undefined, scheduledFor, slug: form.slug || createBlogSlug(title), status, summary, tags: tagsTextToNames(form.tagsText), title }
+    const selectedMediaUrl = media.find((item) => item.id === form.coverImageId)?.url
+    return { authorId: form.authorId, categoryId: form.categoryId, content, coverImageId: form.coverImageUrl.trim() ? undefined : form.coverImageId, coverImageUrl: form.coverImageUrl.trim() || selectedMediaUrl, scheduledFor, slug: form.slug || createBlogSlug(title), status, summary, tags: tagsTextToNames(form.tagsText), title }
   }
 
   async function savePost(statusOverride?: BlogStatus) {
     const payload = buildPayload(statusOverride); if (!payload) return
+    if (!token) { setError('Sessão não encontrada.'); return }
     setSaving(true); setError(''); setSaveState('saving')
     try {
-      if (editingPost) await blogService.updatePost(editingPost.id, payload)
-      else await blogService.createPost(payload)
+      if (editingPost) await blogService.updatePost(token, editingPost.id, payload)
+      else await blogService.createPost(token, payload)
       await reload(); setIsDirty(false); setSaveState('saved')
       const message = payload.status === 'draft' ? 'Rascunho salvo.' : payload.status === 'scheduled' ? 'Publicação agendada.' : 'Publicação publicada.'
       navigate('/admin/blog/posts', { state: { notice: message } })
@@ -136,7 +143,7 @@ export function AdminBlogPostFormPage() {
         </form>
       )}
 
-      {previewOpen ? <div className="admin-dialog-backdrop"><div aria-modal="true" className="admin-dialog admin-preview-dialog" role="dialog"><div className="admin-dialog__header"><div><h2>Pré-visualização</h2><p>Aproximação da aparência pública do conteúdo.</p></div><button aria-label="Fechar" className="admin-icon-button" onClick={() => setPreviewOpen(false)} type="button"><X size={19} /></button></div><article>{selectedCover?.url || form.coverImageUrl ? <img alt="" src={form.coverImageUrl || selectedCover?.url} /> : null}<span>{categories.find((item) => item.id === form.categoryId)?.name}</span><h1>{form.title || 'Título da publicação'}</h1><p>{form.summary || 'O resumo da publicação aparecerá aqui.'}</p><div dangerouslySetInnerHTML={{ __html: form.content }} /></article></div></div> : null}
+      {previewOpen ? <div className="admin-dialog-backdrop"><div aria-modal="true" className="admin-dialog admin-preview-dialog" role="dialog"><div className="admin-dialog__header"><div><h2>Pré-visualização</h2><p>Aproximação da aparência pública do conteúdo.</p></div><button aria-label="Fechar" className="admin-icon-button" onClick={() => setPreviewOpen(false)} type="button"><X size={19} /></button></div><article>{selectedCover?.url || form.coverImageUrl ? <img alt="" src={form.coverImageUrl || selectedCover?.url} /> : null}<span>{categories.find((item) => item.id === form.categoryId)?.name}</span><h1>{form.title || 'Título da publicação'}</h1><p>{form.summary || 'O resumo da publicação aparecerá aqui.'}</p><BlogPostContent content={form.content} /></article></div></div> : null}
       <ConfirmDialog confirmLabel="Sair" description="Existem alterações que ainda não foram salvas. Deseja sair mesmo assim?" onCancel={() => setPendingPath('')} onConfirm={() => { const path = pendingPath; setPendingPath(''); setIsDirty(false); navigate(path) }} open={Boolean(pendingPath)} title="Sair sem salvar?" />
     </div>
   )

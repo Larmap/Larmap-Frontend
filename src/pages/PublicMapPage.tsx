@@ -27,6 +27,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { ApiError, leadsApi, propertiesApi } from '../api/client'
 import type { GeocodingResult } from '../api/geocoding'
+import { AuthPromptDialog } from '../components/AuthPromptDialog'
 import { CityAutocomplete } from '../components/CityAutocomplete'
 import { MapResizeHandler } from '../components/map/MapResizeHandler'
 import { MinimalLocationSearch } from '../components/MinimalLocationSearch'
@@ -663,7 +664,7 @@ function getMarkerIcon(result: PropertyResult, isSelected: boolean) {
 }
 
 export function PublicMapPage() {
-  const { isAuthenticated, token, user } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const routeListingIntent = getListingIntentFromPath(location.pathname)
@@ -699,8 +700,13 @@ export function PublicMapPage() {
   const [visiblePoiCount, setVisiblePoiCount] = useState(0)
   const [filtersPanelCollapsed, setFiltersPanelCollapsed] = useState(() => initialInteractiveMap)
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(
-    () => new Set(getFavorites().map((favorite) => favorite.id)),
+    () => new Set(
+      user?.accessRole === 'COMMON'
+        ? getFavorites(user.id).map((favorite) => favorite.id)
+        : [],
+    ),
   )
+  const [favoriteAuthPromptOpen, setFavoriteAuthPromptOpen] = useState(false)
   const [leadProperty, setLeadProperty] = useState<PropertyResult | null>(null)
   const [leadForm, setLeadForm] = useState<LeadFormState>(emptyLeadForm)
   const [leadNotice, setLeadNotice] = useState('')
@@ -774,7 +780,23 @@ export function PublicMapPage() {
   const handlePoiVisibleCountChange = useCallback((count: number) => {
     setVisiblePoiCount((current) => (current === count ? current : count))
   }, [])
+
+  useEffect(() => {
+    setFavoriteIds(new Set(
+      user?.accessRole === 'COMMON'
+        ? getFavorites(user.id).map((favorite) => favorite.id)
+        : [],
+    ))
+  }, [user?.accessRole, user?.id])
+
   function handleFavoriteToggle(result: PropertyResult) {
+    if (!isAuthenticated || !user) {
+      setFavoriteAuthPromptOpen(true)
+      return
+    }
+
+    if (user.accessRole !== 'COMMON') return
+
     const nextFavorites = toggleFavorite({
       city: result.city,
       contactPhone: result.property.contactPhone,
@@ -784,7 +806,7 @@ export function PublicMapPage() {
       priceLabel: result.priceLabel,
       status: result.property.status,
       title: result.property.title,
-    })
+    }, user.id)
     setFavoriteIds(new Set(nextFavorites.map((favorite) => favorite.id)))
   }
 
@@ -876,7 +898,7 @@ export function PublicMapPage() {
       setLoading(true)
 
       try {
-        const data = await propertiesApi.list(token)
+        const data = await propertiesApi.list()
         if (!ignore) {
           setProperties(mergePropertyLists(data, readLocalAdminProperties()))
         }
@@ -895,7 +917,7 @@ export function PublicMapPage() {
     return () => {
       ignore = true
     }
-  }, [reloadKey, token])
+  }, [reloadKey])
 
   useEffect(() => {
     if (initialSearchHandledRef.current) return
@@ -1511,6 +1533,7 @@ export function PublicMapPage() {
                       <div className="property-card__actions">
                         {showFavoritesButton ? (
                           <button
+                            aria-label={isFavorite ? 'Remover dos favoritos' : 'Salvar imóvel'}
                             aria-pressed={isFavorite}
                             className={isFavorite ? 'favorite-toggle favorite-toggle--active' : 'favorite-toggle'}
                             onClick={() => handleFavoriteToggle(result)}
@@ -1661,6 +1684,14 @@ export function PublicMapPage() {
           </div>
         </PublicMapFrame>
       </section>
+
+      {favoriteAuthPromptOpen ? (
+        <AuthPromptDialog
+          description="Entre ou crie sua conta pessoal para guardar este imóvel e acessar sua seleção depois."
+          onClose={() => setFavoriteAuthPromptOpen(false)}
+          title="Salve este imóvel"
+        />
+      ) : null}
 
       {leadProperty ? (
         <div className="lead-modal-backdrop" role="presentation">

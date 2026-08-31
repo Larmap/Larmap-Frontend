@@ -1,4 +1,4 @@
-import { blogService } from '../../modules/blog/services/blog.service'
+import { publicBlogService } from '../../modules/blog/services/publicBlog.service'
 import { buildAbsoluteUrl, SITEMAP_FILES } from './config'
 import type { SitemapFile } from './types'
 
@@ -8,7 +8,7 @@ function getPostLastmod(updatedAt?: string, publishedAt?: string, createdAt?: st
 
 export async function createBlogSitemap(): Promise<SitemapFile> {
   try {
-    const posts = await blogService.getPosts({ status: 'published' })
+    const posts = await publicBlogService.getPosts({ status: 'published' })
 
     return {
       filename: SITEMAP_FILES.blog,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { blogService } from '../services/blog.service'
+import { publicBlogService } from '../services/publicBlog.service'
 import type { BlogPost } from '../types'
 
 export function useBlogPost(identifier?: string) {
@@ -21,7 +21,7 @@ export function useBlogPost(identifier?: string) {
       setError('')
 
       try {
-        const nextPost = await blogService.getPost(identifier)
+        const nextPost = await publicBlogService.getPost(identifier)
         if (active) setPost(nextPost)
       } catch (caughtError) {
         if (active) setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível carregar a postagem.')

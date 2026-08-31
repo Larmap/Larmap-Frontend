@@ -27,12 +27,14 @@ export const BLOG_STATUS_LABELS: Record<BlogStatus, string> = {
   draft: 'Rascunho',
   published: 'Publicado',
   scheduled: 'Agendado',
+  archived: 'Arquivado',
 }
 
 export const BLOG_STATUS_DESCRIPTIONS: Record<BlogStatus, string> = {
   draft: 'Rascunho em edição',
   published: 'Publicado no blog',
   scheduled: 'Publicação agendada',
+  archived: 'Publicação arquivada',
 }
 
 export const BLOG_ADMIN_PAGE_TITLES: Record<string, string> = {

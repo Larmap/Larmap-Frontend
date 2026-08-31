@@ -1,4 +1,4 @@
-import { BLOG_CATEGORY_FILTERS } from '../constants'
+import { useMemo } from 'react'
 import type { BlogCategory } from '../types'
 
 interface CategoryFilterProps {
@@ -8,6 +8,14 @@ interface CategoryFilterProps {
 }
 
 export function CategoryFilter({ activeSlug, categories, onChange }: CategoryFilterProps) {
+  const categoryOptions = useMemo(
+    () => [
+      { label: 'Todos', slug: 'todos' },
+      ...categories.map((category) => ({ label: category.name, slug: category.slug })),
+    ],
+    [categories],
+  )
+
   function getCount(slug: string) {
     if (slug === 'todos') return categories.reduce((total, category) => total + category.postCount, 0)
     return categories.find((category) => category.slug === slug)?.postCount ?? 0
@@ -15,7 +23,7 @@ export function CategoryFilter({ activeSlug, categories, onChange }: CategoryFil
 
   return (
     <div className="blog-category-filter" aria-label="Categorias do blog">
-      {BLOG_CATEGORY_FILTERS.map((category) => {
+      {categoryOptions.map((category) => {
         const isActive = activeSlug === category.slug
 
         return (

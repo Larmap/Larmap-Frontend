@@ -1,14 +1,12 @@
-import type { User } from '../types/api'
+import type { AuthUser } from '../types/api'
 
-const administrativeRoles = new Set(['admin', 'manager', 'agent'])
-
-export function isAdministrativeSession(isAuthenticated: boolean, user: User | null) {
+export function isAdministrativeSession(isAuthenticated: boolean, user: AuthUser | null) {
   if (!isAuthenticated) return false
   if (!user) return true
 
-  return administrativeRoles.has(String(user.role).toLowerCase())
+  return user.accessRole !== 'COMMON'
 }
 
-export function canUsePublicFavorites(isAuthenticated: boolean, user: User | null) {
+export function canUsePublicFavorites(isAuthenticated: boolean, user: AuthUser | null) {
   return !isAdministrativeSession(isAuthenticated, user)
 }

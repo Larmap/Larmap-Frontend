@@ -1,6 +1,7 @@
 import type {
   ApiFailure,
   ApiResponse,
+  AuthMeData,
   Company,
   CreateLeadInput,
   CreatePartnershipInput,
@@ -21,6 +22,7 @@ import type {
   User,
 } from '../types/api'
 import { normalizeApiBaseUrl, PUBLIC_PROFESSIONAL_ENDPOINTS, PUBLIC_PROPERTY_ENDPOINTS } from './publicEndpoints'
+import { AUTH_UNAUTHORIZED_EVENT } from '../auth/events'
 
 export const API_BASE_URL = normalizeApiBaseUrl(
   import.meta.env.VITE_API_URL ??
@@ -44,6 +46,7 @@ interface RequestOptions {
   method?: string
   body?: unknown
   token?: string | null
+  timeoutMs?: number
 }
 
 async function parseJson(response: Response): Promise<unknown> {
@@ -59,7 +62,7 @@ async function parseJson(response: Response): Promise<unknown> {
 
 async function request<T>(
   endpoint: string,
-  { method = 'GET', body, token }: RequestOptions = {},
+  { method = 'GET', body, token, timeoutMs }: RequestOptions = {},
 ): Promise<T> {
   const headers = new Headers()
   headers.set('Content-Type', 'application/json')
@@ -68,11 +71,31 @@ async function request<T>(
     headers.set('Authorization', `Bearer ${token}`)
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  })
+  const abortController = timeoutMs ? new AbortController() : null
+  const timeoutId = timeoutMs
+    ? globalThis.setTimeout(() => abortController?.abort(), timeoutMs)
+    : null
+  let response: Response
+
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: abortController?.signal,
+    })
+  } catch (error) {
+    if (abortController?.signal.aborted) {
+      throw new ApiError('Request timeout', 408, 'REQUEST_TIMEOUT')
+    }
+    throw error
+  } finally {
+    if (timeoutId !== null) globalThis.clearTimeout(timeoutId)
+  }
+
+  if (token && response.status === 401 && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_UNAUTHORIZED_EVENT))
+  }
 
   const payload = (await parseJson(response)) as ApiResponse<T> | ApiFailure | null
 
@@ -110,7 +133,9 @@ export const authApi = {
     request<LoginData>('/auth/login', {
       method: 'POST',
       body: input,
+      timeoutMs: 15_000,
     }),
+  me: (token: string) => request<AuthMeData>('/auth/me', { token }),
 }
 
 function normalizePropertyList(payload: unknown): Property[] {
@@ -133,24 +158,9 @@ function normalizePropertyList(payload: unknown): Property[] {
 }
 
 async function requestFirstAvailableProperties(token?: string | null) {
-  const endpoints = token ? ['/properties'] : PUBLIC_PROPERTY_ENDPOINTS
-
-  let lastError: unknown
-
-  for (const endpoint of endpoints) {
-    try {
-      const payload = await request<unknown>(endpoint, { token })
-      return normalizePropertyList(payload)
-    } catch (error) {
-      lastError = error
-      if (!(error instanceof ApiError) || ![401, 403, 404, 405, 501].includes(error.status)) {
-        throw error
-      }
-    }
-  }
-
-  if (lastError) throw lastError
-  return []
+  const endpoint = token ? '/properties' : PUBLIC_PROPERTY_ENDPOINTS[0]
+  const payload = await request<unknown>(endpoint, { token })
+  return normalizePropertyList(payload)
 }
 
 async function requestFirstAvailableProfessional(slug: string) {
@@ -162,7 +172,7 @@ async function requestFirstAvailableProfessional(slug: string) {
       return await request<PublicProfessionalProfile>(`${endpoint}/${encodedSlug}`)
     } catch (error) {
       lastError = error
-      if (!(error instanceof ApiError) || ![401, 403, 404, 405, 501].includes(error.status)) {
+      if (!(error instanceof ApiError) || ![404, 405, 501].includes(error.status)) {
         throw error
       }
     }
@@ -170,6 +180,27 @@ async function requestFirstAvailableProfessional(slug: string) {
 
   if (lastError) throw lastError
   throw new ApiError('Perfil profissional indisponível.', 404)
+}
+
+function normalizePublicProfessionalProfile(profile: PublicProfessionalProfile): PublicProfessionalProfile {
+  const details = profile.profile
+  return {
+    ...profile,
+    slug: profile.publicSlug,
+    avatarUrl: details?.avatarUrl ?? profile.avatarUrl,
+    bio: details?.bio ?? profile.bio,
+    creci: details?.creci ?? profile.creci,
+    specialties: details?.specialties ?? profile.specialties,
+    contact: {
+      email: details?.publicEmail ?? profile.contact?.email,
+      instagram: details?.instagram ?? profile.contact?.instagram,
+      phone: details?.publicPhone ?? profile.phone,
+      site: details?.website ?? profile.contact?.site,
+      whatsapp: details?.publicWhatsapp ?? profile.company?.whatsapp ?? profile.contact?.whatsapp,
+    },
+    areas: profile.stats?.neighborhoods ?? profile.areas,
+    propertyTypes: profile.stats?.byType?.map(({ type, count }) => ({ name: type, count })) ?? profile.propertyTypes,
+  }
 }
 
 export const usersApi = {
@@ -226,32 +257,12 @@ export const propertiesApi = {
 }
 
 export const professionalsApi = {
-  getPublic: (slug: string) => requestFirstAvailableProfessional(slug),
+  getPublic: async (slug: string) => normalizePublicProfessionalProfile(await requestFirstAvailableProfessional(slug)),
 }
 
 export const companyApi = {
-  update: async (token: string, input: UpdateCompanyInput) => {
-    const endpoints = ['/companies/me', '/company', '/companies']
-    let lastError: unknown
-
-    for (const endpoint of endpoints) {
-      try {
-        return await request<Company>(endpoint, {
-          method: 'PATCH',
-          token,
-          body: input,
-        })
-      } catch (error) {
-        lastError = error
-        if (!(error instanceof ApiError) || ![404, 405, 501].includes(error.status)) {
-          throw error
-        }
-      }
-    }
-
-    if (lastError) throw lastError
-    return input as Company
-  },
+  update: (token: string, input: UpdateCompanyInput) =>
+    request<Company>('/companies/me', { method: 'PATCH', token, body: input }),
 }
 
 export const leadsApi = {
@@ -268,7 +279,7 @@ export const leadsApi = {
         })
       } catch (error) {
         lastError = error
-        if (!(error instanceof ApiError) || ![401, 403, 404, 405, 501].includes(error.status)) {
+        if (!(error instanceof ApiError) || ![404, 405, 501].includes(error.status)) {
           throw error
         }
       }

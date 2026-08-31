@@ -1,7 +1,8 @@
-import { KeyRound, LogIn } from 'lucide-react'
+import { LogIn } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { getErrorMessage } from '../api/errors'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { canAccessPath, getPostLoginDestination } from '../auth/authorization'
+import { getLoginErrorMessage } from '../auth/loginErrors'
 import { BrandLogo } from '../components/BrandLogo'
 import { useAuth } from '../context/AuthContext'
 
@@ -9,10 +10,6 @@ interface RouteState {
   from?: {
     pathname?: string
   }
-}
-
-function getPostLoginPath(role?: string) {
-  return role === 'agent' ? '/admin/corretor' : '/admin/dashboard'
 }
 
 export function AdminLoginPage() {
@@ -35,11 +32,14 @@ export function AdminLoginPage() {
     setError('')
 
     try {
-      const data = await login({ email, password })
-      const fallbackPath = getPostLoginPath(data.user?.role)
-      navigate(routeState?.from?.pathname ?? fallbackPath, { replace: true })
+      const session = await login({ email, password })
+      const requestedPath = routeState?.from?.pathname
+      const destination = requestedPath && canAccessPath(session, requestedPath)
+        ? requestedPath
+        : getPostLoginDestination(session)
+      navigate(destination, { replace: true })
     } catch (caughtError) {
-      setError(getErrorMessage(caughtError))
+      setError(getLoginErrorMessage(caughtError))
     } finally {
       setLoading(false)
     }
@@ -47,48 +47,54 @@ export function AdminLoginPage() {
 
   return (
     <main className="admin-login-page">
-      <section className="admin-login__intro">
+      <section aria-labelledby="admin-login-intro-title" className="admin-login__intro">
         <BrandLogo className="admin-login__logo brand--auth" to="/" />
 
         <div className="admin-login__copy">
           <span className="eyebrow">Área profissional</span>
-          <h1>Gestão de imóveis, corretores e leads em um só painel.</h1>
-          <p>
-            Acesse com a conta da imobiliária ou do corretor para acompanhar carteira,
-            negociações e desempenho comercial.
-          </p>
+          <h1 id="admin-login-intro-title">Gestão de imóveis, corretores e leads em um só painel.</h1>
+          <p>Acompanhe sua carteira, equipe e oportunidades com clareza.</p>
         </div>
       </section>
 
-      <section className="admin-login__panel">
-        <form className="admin-login__form" onSubmit={handleSubmit}>
-          <div className="admin-login__form-header">
+      <section aria-labelledby="admin-login-title" className="admin-login__panel">
+        <form
+          aria-busy={loading}
+          aria-describedby={error ? 'admin-login-error admin-login-help' : 'admin-login-help'}
+          className="admin-login__form"
+          onSubmit={handleSubmit}
+        >
+          <header className="admin-login__form-header">
             <div>
-              <span className="form-kicker">
-                <KeyRound size={17} />
-                Login administrativo
-              </span>
-              <h2>Entrar no LarMap</h2>
+              <span className="form-kicker">Acesso administrativo</span>
+              <h2 id="admin-login-title">Entrar no painel</h2>
             </div>
-          </div>
+          </header>
 
-          <label>
-            Email
+          <label htmlFor="admin-login-email">
+            E-mail
             <input
+              autoCapitalize="none"
               autoComplete="email"
+              autoFocus
+              disabled={loading}
+              id="admin-login-email"
               inputMode="email"
               onChange={(event) => setEmail(event.target.value)}
               placeholder="admin@imobiliaria.com"
               required
+              spellCheck={false}
               type="email"
               value={email}
             />
           </label>
 
-          <label>
+          <label htmlFor="admin-login-password">
             Senha
             <input
               autoComplete="current-password"
+              disabled={loading}
+              id="admin-login-password"
               minLength={8}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Sua senha"
@@ -98,15 +104,19 @@ export function AdminLoginPage() {
             />
           </label>
 
-          {error ? <p className="form-error">{error}</p> : null}
+          {error ? (
+            <p aria-atomic="true" className="form-error" id="admin-login-error" role="alert">
+              {error}
+            </p>
+          ) : null}
 
           <button className="primary-button" disabled={loading} type="submit">
             <span>{loading ? 'Entrando...' : 'Entrar no painel'}</span>
-            <LogIn size={18} />
+            <LogIn aria-hidden="true" size={18} />
           </button>
 
-          <p className="auth-switch">
-            Ainda não tem uma conta? <Link to="/register">Cadastrar imobiliária</Link>
+          <p className="auth-switch" id="admin-login-help">
+            O acesso administrativo é concedido pela equipe LarMap.
           </p>
         </form>
       </section>

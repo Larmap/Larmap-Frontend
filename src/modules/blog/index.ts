@@ -8,6 +8,7 @@ export { AdminBlogPostsPage } from './pages/AdminBlogPostsPage'
 export { AdminBlogShell } from './pages/AdminBlogShell'
 export { LarMapExplainSection } from './components/LarMapExplainSection'
 export { blogService } from './services/blog.service'
+export { mergeWithLegacyCategories, mergeWithLegacyPosts, publicBlogService } from './services/publicBlog.service'
 export type {
   BlogAuthor,
   BlogCategory,

@@ -538,7 +538,8 @@ export function PropertyDetailPage() {
     'brandImageUrl',
   ])
   const contactRole = contactCompany ? 'Imobiliária responsável' : 'Corretor imobiliário'
-  const advertiserProfileUrl = `/profissional/${getAdvertiserSlug(loadedProperty)}`
+  const advertiserSlug = getAdvertiserSlug(loadedProperty)
+  const advertiserProfileUrl = advertiserSlug ? `/profissional/${advertiserSlug}` : null
   const hasContactDetails = Boolean(contactCompany || contactPhone || contactEmail)
   const publishedAt = formatDate(loadedProperty.createdAt)
   const updatedAt = formatDate(loadedProperty.updatedAt)
@@ -859,9 +860,11 @@ export function PropertyDetailPage() {
             </button>
 
             <div className="property-contact-card__actions">
-              <Link className="property-contact-card__action" to={advertiserProfileUrl}>
-                Ver perfil profissional →
-              </Link>
+              {advertiserProfileUrl ? (
+                <Link className="property-contact-card__action" to={advertiserProfileUrl}>
+                  Ver perfil profissional →
+                </Link>
+              ) : null}
               <button className="property-contact-card__action" onClick={handleShare} type="button">
                 Compartilhar anúncio →
               </button>

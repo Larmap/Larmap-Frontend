@@ -28,3 +28,6 @@ dist-ssr
 *.sw?
 *.md
 *.MD
+!docs/BACKEND_CHANGES_REQUIRED.md
+!docs/BLOG_MOCK_MIGRATION_PLAN.md
+scripts/.blog-migration-manifest.json

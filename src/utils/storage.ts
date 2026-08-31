@@ -1,6 +1,11 @@
 export function readStorageValue(storageKey: string, legacyStorageKey?: string) {
   const currentValue = localStorage.getItem(storageKey)
-  if (currentValue !== null) return currentValue
+  if (currentValue !== null) {
+    if (legacyStorageKey) {
+      localStorage.removeItem(legacyStorageKey)
+    }
+    return currentValue
+  }
   if (!legacyStorageKey) return null
 
   const legacyValue = localStorage.getItem(legacyStorageKey)

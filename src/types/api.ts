@@ -2,6 +2,8 @@ export type PropertyStatus = 'AVAILABLE' | 'NEGOTIATING' | 'SOLD'
 
 export type UserRole = 'agent' | 'manager' | 'admin' | string
 
+export type AccessRole = 'COMMON' | 'COMPANY' | 'BLOG' | 'TECHNICAL'
+
 export interface PropertyMediaFile {
   fileName: string
   lastModified?: number
@@ -14,6 +16,7 @@ export interface Company {
   id: string
   name: string
   email: string
+  publicSlug?: string | null
   phone?: string | null
   whatsapp?: string | null
   brandImageUrl?: string | null
@@ -36,10 +39,38 @@ export interface User {
   email: string
   phone?: string | null
   role: UserRole
+  publicSlug?: string | null
   companyId: string
   createdAt: string
   updatedAt: string
 }
+
+export interface AuthUser {
+  id: string
+  name: string
+  email: string
+  companyId?: string | null
+  professionalRole?: string | null
+  accessRole: AccessRole
+  permissions: string[]
+  publicSlug?: string | null
+}
+
+export interface NewAuthSession {
+  kind: 'NEW_AUTH_SESSION'
+  token: string
+  user: AuthUser
+  company: Company | null
+}
+
+export interface LegacyCompanySession {
+  kind: 'LEGACY_COMPANY_SESSION'
+  token: string
+  user: null
+  company: Company
+}
+
+export type AuthSession = NewAuthSession | LegacyCompanySession
 
 export interface Property {
   id: string
@@ -94,6 +125,7 @@ export interface Property {
   operation?: string | null
   agentId?: string | null
   agentName?: string | null
+  agentPublicSlug?: string | null
   responsibleAgentId?: string | null
   responsibleAgentName?: string | null
   images?: string[] | null
@@ -126,6 +158,9 @@ export interface PublicProfessionalStats {
   responseMinutes?: number | string | null
   responseRate?: number | string | null
   reviewCount?: number | string | null
+  totalProperties?: number | string | null
+  neighborhoods?: PublicProfessionalArea[]
+  byType?: Array<{ type: string; count: number }>
 }
 
 export interface PublicProfessionalReview {
@@ -154,6 +189,7 @@ export interface PublicProfessionalPropertyType {
 export interface PublicProfessionalProfile {
   id: string
   name: string
+  publicSlug: string
   slug: string
   role?: string | null
   email?: string | null
@@ -178,6 +214,22 @@ export interface PublicProfessionalProfile {
   properties?: Property[] | null
   areas?: PublicProfessionalArea[] | null
   propertyTypes?: PublicProfessionalPropertyType[] | null
+  profile?: {
+    avatarUrl?: string | null
+    bio?: string | null
+    headline?: string | null
+    creci?: string | null
+    website?: string | null
+    instagram?: string | null
+    facebook?: string | null
+    linkedin?: string | null
+    youtube?: string | null
+    publicPhone?: string | null
+    publicWhatsapp?: string | null
+    publicEmail?: string | null
+    specialties?: string[]
+    serviceAreas?: string[]
+  } | null
 }
 
 export interface ApiSuccess<T> {
@@ -219,8 +271,13 @@ export interface RegisterCompanyInput extends LoginInput {
 
 export interface LoginData {
   token: string
-  company: Company
-  user?: User | null
+  company?: Company | null
+  user?: AuthUser | null
+}
+
+export interface AuthMeData {
+  user: AuthUser
+  company?: Company | null
 }
 
 export type LeadStatus = 'NEW' | 'IN_SERVICE' | 'NEGOTIATING' | 'FINISHED' | 'LOST'

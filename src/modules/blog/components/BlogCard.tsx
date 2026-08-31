@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import type { BlogPost } from '../types'
 import { formatBlogDate, getPostDisplayDate } from '../utils'
 import { ReadingTime } from './ReadingTime'
+import { SaveArticleButton } from './SaveArticleButton'
 
 interface BlogCardProps {
   post: BlogPost
@@ -14,6 +15,7 @@ export function BlogCard({ post }: BlogCardProps) {
 
   return (
     <article className="blog-card" style={style}>
+      <SaveArticleButton compact post={post} />
       <Link className="blog-card__media" to={`/blog/${post.slug}`}>
         <img alt={post.coverImage.alt ?? post.title} src={post.coverImage.url} />
       </Link>

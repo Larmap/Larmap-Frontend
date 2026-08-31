@@ -6,7 +6,11 @@ interface PublicRouteProps {
 }
 
 export function PublicRoute({ redirectTo }: PublicRouteProps) {
-  const { adminHomePath, isAuthenticated } = useAuth()
+  const { adminHomePath, isAuthenticated, isAuthLoading } = useAuth()
+
+  if (isAuthLoading) {
+    return <p className="route-loading">Validando sessão...</p>
+  }
 
   if (isAuthenticated) {
     return <Navigate to={redirectTo ?? adminHomePath} replace />

@@ -24,9 +24,29 @@ interface AdminDataState {
   agentPerformance: PerformanceMetric[]
   propertyPerformance: PropertyPerformance[]
   loading: boolean
+  hasLoaded: boolean
+  available: AdminDataAvailability
   notice: string
   reload: () => void
   setLeads: (leads: Lead[]) => void
+}
+
+interface AdminDataAvailability {
+  properties: boolean
+  users: boolean
+  leads: boolean
+  negotiations: boolean
+  agentPerformance: boolean
+  propertyPerformance: boolean
+}
+
+const initialAvailability: AdminDataAvailability = {
+  properties: false,
+  users: false,
+  leads: false,
+  negotiations: false,
+  agentPerformance: false,
+  propertyPerformance: false,
 }
 
 export function useAdminData(token: string | null): AdminDataState {
@@ -36,7 +56,9 @@ export function useAdminData(token: string | null): AdminDataState {
   const [negotiations, setNegotiations] = useState<Negotiation[]>([])
   const [agentPerformance, setAgentPerformance] = useState<PerformanceMetric[]>([])
   const [propertyPerformance, setPropertyPerformance] = useState<PropertyPerformance[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(Boolean(token))
+  const [hasLoaded, setHasLoaded] = useState(false)
+  const [available, setAvailable] = useState<AdminDataAvailability>(initialAvailability)
   const [notice, setNotice] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -49,60 +71,84 @@ export function useAdminData(token: string | null): AdminDataState {
       setLoading(true)
       setNotice('')
 
-      let nextProperties: Property[] = []
-      let nextUsers: User[] = []
-      let nextLeads: Lead[] = []
-      let nextNegotiations: Negotiation[] = []
-      let nextAgentPerformance: PerformanceMetric[] = []
-      let nextPropertyPerformance: PropertyPerformance[] = []
+      const localLeads = readLocalLeads()
       const loadNotes: string[] = []
 
-      try {
-        nextProperties = await propertiesApi.list(authToken)
-      } catch {
-        loadNotes.push('Não foi possível carregar imóveis.')
-      }
-
-      try {
-        const userResponse = await usersApi.list(authToken, 100, 0)
-        nextUsers = userResponse.users
-      } catch {
-        loadNotes.push('Não foi possível carregar corretores.')
-      }
-
-      try {
-        nextLeads = mergeLeadLists(await leadsApi.list(authToken), readLocalLeads())
-      } catch {
-        nextLeads = readLocalLeads()
-      }
-
-      try {
-        nextNegotiations = await negotiationsApi.list(authToken)
-      } catch {
-        nextNegotiations = []
-      }
-
-      try {
-        nextAgentPerformance = await performanceApi.listAgents(authToken)
-      } catch {
-        nextAgentPerformance = []
-      }
-
-      try {
-        nextPropertyPerformance = await performanceApi.listProperties(authToken)
-      } catch {
-        nextPropertyPerformance = []
-      }
+      const [
+        propertiesResult,
+        usersResult,
+        leadsResult,
+        negotiationsResult,
+        agentPerformanceResult,
+        propertyPerformanceResult,
+      ] = await Promise.allSettled([
+        propertiesApi.list(authToken),
+        usersApi.list(authToken, 100, 0),
+        leadsApi.list(authToken),
+        negotiationsApi.list(authToken),
+        performanceApi.listAgents(authToken),
+        performanceApi.listProperties(authToken),
+      ])
 
       if (!ignore) {
-        setProperties(nextProperties)
-        setUsers(nextUsers)
-        setLeads(nextLeads)
-        setNegotiations(nextNegotiations)
-        setAgentPerformance(nextAgentPerformance)
-        setPropertyPerformance(nextPropertyPerformance)
+        if (propertiesResult.status === 'fulfilled') {
+          setProperties(propertiesResult.value)
+        } else {
+          loadNotes.push('Não foi possível carregar os imóveis.')
+        }
+
+        if (usersResult.status === 'fulfilled') {
+          setUsers(usersResult.value.users)
+        } else {
+          loadNotes.push('Não foi possível carregar os corretores.')
+        }
+
+        if (leadsResult.status === 'fulfilled') {
+          setLeads(mergeLeadLists(leadsResult.value, localLeads))
+        } else {
+          setLeads((current) => (current.length ? current : localLeads))
+          loadNotes.push(
+            localLeads.length
+              ? 'Não foi possível sincronizar os leads. Exibindo os dados salvos neste dispositivo.'
+              : 'Não foi possível carregar os leads.',
+          )
+        }
+
+        if (negotiationsResult.status === 'fulfilled') {
+          setNegotiations(negotiationsResult.value)
+        } else {
+          loadNotes.push('Não foi possível carregar as negociações.')
+        }
+
+        if (agentPerformanceResult.status === 'fulfilled') {
+          setAgentPerformance(agentPerformanceResult.value)
+        } else {
+          loadNotes.push('Não foi possível carregar o desempenho dos corretores.')
+        }
+
+        if (propertyPerformanceResult.status === 'fulfilled') {
+          setPropertyPerformance(propertyPerformanceResult.value)
+        } else {
+          loadNotes.push('Não foi possível carregar o desempenho dos imóveis.')
+        }
+
+        setAvailable((current) => ({
+          properties: current.properties || propertiesResult.status === 'fulfilled',
+          users: current.users || usersResult.status === 'fulfilled',
+          leads:
+            current.leads ||
+            leadsResult.status === 'fulfilled' ||
+            localLeads.length > 0,
+          negotiations: current.negotiations || negotiationsResult.status === 'fulfilled',
+          agentPerformance:
+            current.agentPerformance || agentPerformanceResult.status === 'fulfilled',
+          propertyPerformance:
+            current.propertyPerformance || propertyPerformanceResult.status === 'fulfilled',
+        }))
+
         setNotice(Array.from(new Set(loadNotes)).join(' '))
         setLoading(false)
+        setHasLoaded(true)
       }
     }
 
@@ -121,13 +167,17 @@ export function useAdminData(token: string | null): AdminDataState {
       negotiations,
       agentPerformance,
       propertyPerformance,
+      available,
       loading,
+      hasLoaded,
       notice,
       reload: () => setReloadKey((current) => current + 1),
       setLeads,
     }),
     [
       agentPerformance,
+      available,
+      hasLoaded,
       leads,
       loading,
       negotiations,

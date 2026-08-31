@@ -9,12 +9,11 @@ function getTitle(pathname: string) {
   return BLOG_ADMIN_PAGE_TITLES[pathname] ?? 'LarMap Explica'
 }
 
-function getAccountRole(role?: string) {
-  if (!role) return 'Conta administrativa'
-  if (role === 'admin') return 'Administrador'
-  if (role === 'manager') return 'Gerente'
-  if (role === 'agent') return 'Corretor'
-  return role
+function getAccountRole(accessRole?: string) {
+  if (accessRole === 'BLOG') return 'Editor do blog'
+  if (accessRole === 'TECHNICAL') return 'Técnico'
+  if (accessRole === 'COMPANY') return 'Imobiliária'
+  return 'Conta administrativa'
 }
 
 export function AdminTopbar({ onMenuOpen }: { onMenuOpen: () => void }) {
@@ -42,12 +41,12 @@ export function AdminTopbar({ onMenuOpen }: { onMenuOpen: () => void }) {
       <div className="admin-user-menu" ref={menuRef}>
         <button aria-expanded={menuOpen} aria-haspopup="menu" className="admin-user-menu__trigger" onClick={() => setMenuOpen((current) => !current)} type="button">
           <span aria-hidden="true" className="admin-user-menu__avatar">{initials}</span>
-          <span className="admin-user-menu__identity"><strong>{accountName}</strong><small>{getAccountRole(user?.role)}</small></span>
+          <span className="admin-user-menu__identity"><strong>{accountName}</strong><small>{getAccountRole(user?.accessRole)}</small></span>
           <ChevronDown aria-hidden="true" size={16} />
         </button>
         {menuOpen ? (
           <div className="admin-user-menu__popover" role="menu">
-            <span className="admin-user-menu__placeholder" role="menuitem"><UserRound size={16} /> Minha conta</span>
+            <Link onClick={() => setMenuOpen(false)} role="menuitem" to="/minha-conta"><UserRound size={16} /> Minha conta</Link>
             <Link onClick={() => setMenuOpen(false)} role="menuitem" target="_blank" to="/"><ExternalLink size={16} /> Ver site</Link>
             <button onClick={logout} role="menuitem" type="button"><LogOut size={16} /> Sair</button>
           </div>

@@ -6,10 +6,12 @@ import { MediaGrid } from '../components/MediaGrid'
 import { blogService } from '../services/blog.service'
 import type { MediaFileType } from '../types'
 import { useBlogAdminWorkspace } from './AdminBlogShell'
+import { useAuth } from '../../../context/AuthContext'
 
 type MediaFilter = 'all' | MediaFileType
 
 export function AdminBlogMediaPage() {
+  const { token } = useAuth()
   const { media, reload } = useBlogAdminWorkspace()
   const [notice, setNotice] = useState('')
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -28,7 +30,8 @@ export function AdminBlogMediaPage() {
 
   async function handleUpload(files: File[]) {
     if (!files.length) return
-    await Promise.all(files.map((file) => blogService.uploadMedia(file)))
+    if (!token) throw new Error('Sessão não encontrada.')
+    await Promise.all(files.map((file) => blogService.uploadMedia(token, file)))
     setUploadOpen(false)
     setNotice(files.length === 1 ? 'Arquivo adicionado.' : 'Arquivos adicionados.')
     await reload()

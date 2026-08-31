@@ -18,7 +18,7 @@ const emptyMetrics: BlogDashboardMetrics = {
   totalPosts: 0,
 }
 
-export function useBlogAdminData() {
+export function useBlogAdminData(token: string | null) {
   const [data, setData] = useState<BlogAdminData>({
     authors: [],
     categories: [],
@@ -33,21 +33,30 @@ export function useBlogAdminData() {
     setLoading(true)
     setError('')
 
+    if (!token) {
+      setError('Sessão não encontrada.')
+      setLoading(false)
+      return
+    }
+
     try {
-      const [posts, categories, media, authors, metrics] = await Promise.all([
-        blogService.getPosts(),
+      const [published, drafts, scheduled, archived, categories, media, authors, metrics] = await Promise.all([
+        blogService.getPosts({ status: 'published' }, token),
+        blogService.getPosts({ status: 'draft' }, token),
+        blogService.getPosts({ status: 'scheduled' }, token),
+        blogService.getPosts({ status: 'archived' }, token),
         blogService.getCategories(),
-        blogService.getMedia(),
-        blogService.getAuthors(),
-        blogService.getDashboardMetrics(),
+        blogService.getMedia(token),
+        blogService.getAuthors(token),
+        blogService.getDashboardMetrics(token),
       ])
-      setData({ authors, categories, media, metrics, posts })
+      setData({ authors, categories, media, metrics, posts: [...published, ...drafts, ...scheduled, ...archived] })
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível carregar dados do blog.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     void reload()

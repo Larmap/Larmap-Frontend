@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { blogService } from '../services/blog.service'
+import { publicBlogService } from '../services/publicBlog.service'
 import type { BlogCategory } from '../types'
 
 export function useBlogCategories() {
@@ -15,7 +15,7 @@ export function useBlogCategories() {
       setError('')
 
       try {
-        const nextCategories = await blogService.getCategories()
+        const nextCategories = await publicBlogService.getCategories()
         if (active) setCategories(nextCategories)
       } catch (caughtError) {
         if (active) setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível carregar categorias.')

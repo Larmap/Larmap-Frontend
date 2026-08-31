@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet, useOutletContext } from 'react-router-dom'
 import { AdminSidebar } from '../components/AdminSidebar'
 import { AdminTopbar } from '../components/AdminTopbar'
+import { useAuth } from '../../../context/AuthContext'
 import { useBlogAdminData } from '../hooks/useBlogAdminData'
 
 export type BlogAdminWorkspaceContext = ReturnType<typeof useBlogAdminData>
@@ -11,7 +12,8 @@ export function useBlogAdminWorkspace() {
 }
 
 export function AdminBlogShell() {
-  const adminData = useBlogAdminData()
+  const { token } = useAuth()
+  const adminData = useBlogAdminData(token)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (

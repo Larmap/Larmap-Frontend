@@ -1,62 +1,29 @@
-import { ArrowRight, MapPin } from 'lucide-react'
+import { ArrowRight, ShieldCheck, UserPlus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { getErrorMessage } from '../api/errors'
+import { Link } from 'react-router-dom'
 import { BrandLogo } from '../components/BrandLogo'
-import { useAuth } from '../context/AuthContext'
+import { featureFlags } from '../config/features'
 
-export function RegisterPage() {
-  const { registerCompany } = useAuth()
-  const navigate = useNavigate()
+function RegisterForm() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [phone, setPhone] = useState('')
-  const [whatsapp, setWhatsapp] = useState('')
-  const [brandImageUrl, setBrandImageUrl] = useState('')
-  const [headquartersStreet, setHeadquartersStreet] = useState('')
-  const [headquartersNumber, setHeadquartersNumber] = useState('')
-  const [headquartersNeighborhood, setHeadquartersNeighborhood] = useState('')
-  const [headquartersCity, setHeadquartersCity] = useState('')
-  const [headquartersState, setHeadquartersState] = useState('')
-  const [headquartersPostalCode, setHeadquartersPostalCode] = useState('')
+  const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [registrationPending, setRegistrationPending] = useState(false)
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setLoading(true)
     setError('')
 
-    try {
-      await registerCompany({
-        name,
-        email,
-        password,
-        phone: phone || undefined,
-        whatsapp: whatsapp || undefined,
-        brandImageUrl,
-        logoUrl: brandImageUrl,
-        headquartersStreet,
-        headquartersNumber,
-        headquartersNeighborhood,
-        headquartersCity,
-        headquartersState,
-        headquartersPostalCode,
-        headquartersAddress: [
-          `${headquartersStreet}, ${headquartersNumber}`,
-          headquartersNeighborhood,
-          headquartersCity,
-          headquartersState,
-          headquartersPostalCode,
-        ].join(', '),
-      })
-      navigate('/app', { replace: true })
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError))
-    } finally {
-      setLoading(false)
+    if (password !== passwordConfirmation) {
+      setError('As senhas precisam ser iguais.')
+      return
     }
+
+    // O endpoint atual cria Company. A UI não envia estes dados até o backend
+    // implementar o cadastro individual que força accessRole = COMMON.
+    setRegistrationPending(true)
   }
 
   return (
@@ -65,31 +32,32 @@ export function RegisterPage() {
         <BrandLogo className="brand--auth" to="/" />
 
         <div className="auth-copy">
-          <span className="eyebrow">Nova empresa</span>
-          <h1>Comece com uma conta multi-tenant isolada.</h1>
+          <span className="eyebrow">Sua conta LarMap</span>
+          <h1>Guarde seus imóveis e conteúdos preferidos.</h1>
           <p>
-            O cadastro cria a empresa e já autentica sua sessão para continuar
-            no painel.
+            Crie uma conta pessoal para organizar imóveis e artigos do LarMap Explica.
+            Este cadastro não concede acesso administrativo.
           </p>
         </div>
       </section>
 
       <section className="auth-panel auth-panel--form">
-        <form className="auth-form auth-form--wide" onSubmit={handleSubmit}>
+        <form className="auth-form" onSubmit={handleSubmit}>
           <div>
             <span className="form-kicker">
-              <MapPin size={17} />
-              Cadastro
+              <UserPlus size={17} />
+              Cadastro pessoal
             </span>
-            <h2>Criar imobiliária</h2>
+            <h2>Crie sua conta</h2>
           </div>
 
           <label>
-            Nome da empresa
+            Nome
             <input
+              autoComplete="name"
               minLength={2}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Sua Imobiliária"
+              placeholder="Como podemos chamar você?"
               required
               value={name}
             />
@@ -101,77 +69,12 @@ export function RegisterPage() {
               autoComplete="email"
               inputMode="email"
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="admin@imobiliaria.com"
+              placeholder="voce@email.com"
               required
               type="email"
               value={email}
             />
           </label>
-
-          <div className="form-grid">
-            <label>
-              Telefone
-              <input
-                onChange={(event) => setPhone(event.target.value)}
-                placeholder="+55-21-99999-0000"
-                type="tel"
-                value={phone}
-              />
-            </label>
-
-            <label>
-              WhatsApp
-              <input
-                onChange={(event) => setWhatsapp(event.target.value)}
-                placeholder="+55-21-99999-0000"
-                type="tel"
-                value={whatsapp}
-              />
-            </label>
-          </div>
-
-          <label>
-            Foto de marca / logomarca
-            <input
-              onChange={(event) => setBrandImageUrl(event.target.value)}
-              placeholder="URL da imagem da marca"
-              required
-              value={brandImageUrl}
-            />
-          </label>
-
-          <div className="form-grid">
-            <label>
-              Rua ou avenida da sede
-              <input onChange={(event) => setHeadquartersStreet(event.target.value)} required value={headquartersStreet} />
-            </label>
-            <label>
-              Número
-              <input onChange={(event) => setHeadquartersNumber(event.target.value)} required value={headquartersNumber} />
-            </label>
-          </div>
-
-          <div className="form-grid">
-            <label>
-              Bairro
-              <input onChange={(event) => setHeadquartersNeighborhood(event.target.value)} required value={headquartersNeighborhood} />
-            </label>
-            <label>
-              Cidade
-              <input onChange={(event) => setHeadquartersCity(event.target.value)} required value={headquartersCity} />
-            </label>
-          </div>
-
-          <div className="form-grid">
-            <label>
-              Estado
-              <input maxLength={2} onChange={(event) => setHeadquartersState(event.target.value.toUpperCase())} required value={headquartersState} />
-            </label>
-            <label>
-              CEP
-              <input inputMode="numeric" onChange={(event) => setHeadquartersPostalCode(event.target.value)} required value={headquartersPostalCode} />
-            </label>
-          </div>
 
           <label>
             Senha
@@ -186,18 +89,82 @@ export function RegisterPage() {
             />
           </label>
 
-          {error ? <p className="form-error">{error}</p> : null}
+          <label>
+            Confirme a senha
+            <input
+              autoComplete="new-password"
+              minLength={8}
+              onChange={(event) => setPasswordConfirmation(event.target.value)}
+              placeholder="Digite a senha novamente"
+              required
+              type="password"
+              value={passwordConfirmation}
+            />
+          </label>
 
-          <button className="primary-button" disabled={loading} type="submit">
-            <span>{loading ? 'Criando...' : 'Criar e entrar'}</span>
+          <p className="auth-security-note">
+            <ShieldCheck size={16} />
+            Toda conta criada por este fluxo terá perfil pessoal COMMON, definido com segurança pelo backend.
+          </p>
+
+          {error ? <p className="form-error">{error}</p> : null}
+          {registrationPending ? (
+            <p aria-live="polite" className="notice">
+              Seu cadastro não foi enviado. A criação de contas pessoais será ativada quando o novo contrato do backend estiver disponível.
+            </p>
+          ) : null}
+
+          <button className="primary-button" disabled={registrationPending} type="submit">
+            <span>{registrationPending ? 'Aguardando integração' : 'Criar minha conta'}</span>
             <ArrowRight size={18} />
           </button>
 
           <p className="auth-switch">
-            Já existe cadastro? <Link to="/login">Entrar</Link>
+            Já tem uma conta? <Link to="/login">Entrar</Link>
           </p>
         </form>
       </section>
     </main>
   )
+}
+
+function RegistrationUnavailablePage() {
+  return (
+    <main className="auth-screen">
+      <section className="auth-panel auth-panel--intro">
+        <BrandLogo className="brand--auth" to="/" />
+
+        <div className="auth-copy">
+          <span className="eyebrow">Sua conta LarMap</span>
+          <h1>O cadastro está temporariamente indisponível.</h1>
+          <p>
+            Estamos concluindo a integração segura do novo cadastro pessoal. O acesso de contas existentes continua disponível.
+          </p>
+        </div>
+      </section>
+
+      <section className="auth-panel auth-panel--form">
+        <div className="auth-form">
+          <div>
+            <span className="form-kicker">
+              <ShieldCheck size={17} />
+              Cadastro pessoal
+            </span>
+            <h2>Voltaremos em breve</h2>
+          </div>
+          <p className="auth-security-note">
+            Nenhum dado foi enviado e nenhuma imobiliária será criada por esta página durante a transição.
+          </p>
+          <Link className="primary-button" to="/login">
+            Entrar
+            <ArrowRight size={18} />
+          </Link>
+        </div>
+      </section>
+    </main>
+  )
+}
+
+export function RegisterPage() {
+  return featureFlags.PUBLIC_REGISTRATION ? <RegisterForm /> : <RegistrationUnavailablePage />
 }

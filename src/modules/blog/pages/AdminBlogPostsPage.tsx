@@ -8,10 +8,12 @@ import { blogService } from '../services/blog.service'
 import type { BlogPost, BlogStatus } from '../types'
 import { getPostStatusDate } from '../utils'
 import { useBlogAdminWorkspace } from './AdminBlogShell'
+import { useAuth } from '../../../context/AuthContext'
 
 type StatusFilter = 'all' | BlogStatus | 'archived'
 
 export function AdminBlogPostsPage() {
+  const { token } = useAuth()
   const { categories, error, loading, posts, reload } = useBlogAdminWorkspace()
   const location = useLocation()
   const [notice, setNotice] = useState('')
@@ -40,14 +42,16 @@ export function AdminBlogPostsPage() {
 
   async function confirmDelete() {
     if (!deleteTarget) return
-    await blogService.deletePost(deleteTarget.id)
+    if (!token) return
+    await blogService.deletePost(token, deleteTarget.id)
     setDeleteTarget(null)
     setNotice('Publicação excluída.')
     await reload()
   }
 
   async function handleDuplicate(post: BlogPost) {
-    await blogService.duplicatePost(post.id)
+    if (!token) return
+    await blogService.duplicatePost(token, post.id)
     setNotice('Publicação duplicada como rascunho.')
     await reload()
   }

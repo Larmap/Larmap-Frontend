@@ -1,6 +1,26 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import {
+  can as canSession,
+  canAccessBlogAdmin as canAccessBlogAdminForSession,
+  canAccessCompanyAdmin as canAccessCompanyAdminForSession,
+  canEditOwnProfessionalProfile as canEditOwnProfessionalProfileForSession,
+  getPostLoginDestination,
+  hasAccessRole as sessionHasAccessRole,
+  type AppPermission,
+} from '../auth/authorization'
+import { AUTH_UNAUTHORIZED_EVENT } from '../auth/events'
 import { ApiError, authApi, companyApi } from '../api/client'
-import type { Company, LoginData, LoginInput, RegisterCompanyInput, UpdateCompanyInput, User } from '../types/api'
+import { featureFlags } from '../config/features'
+import type {
+  AccessRole,
+  AuthSession,
+  AuthUser,
+  Company,
+  LoginData,
+  LoginInput,
+  RegisterCompanyInput,
+  UpdateCompanyInput,
+} from '../types/api'
 import { readStorageValue, removeStorageValue } from '../utils/storage'
 
 const TOKEN_STORAGE_KEY = 'larmap.authToken'
@@ -9,14 +29,24 @@ const USER_STORAGE_KEY = 'larmap.user'
 const LEGACY_TOKEN_STORAGE_KEY = 'smartmap.authToken'
 const LEGACY_COMPANY_STORAGE_KEY = 'smartmap.company'
 const LEGACY_USER_STORAGE_KEY = 'smartmap.user'
+const ACCESS_ROLES = new Set<AccessRole>(['COMMON', 'COMPANY', 'BLOG', 'TECHNICAL'])
 
 interface AuthContextValue {
+  session: AuthSession | null
+  sessionKind: AuthSession['kind'] | null
   token: string | null
   company: Company | null
-  user: User | null
+  user: AuthUser | null
   adminHomePath: string
   isAuthenticated: boolean
-  login: (input: LoginInput) => Promise<LoginData>
+  isAuthLoading: boolean
+  authErrorStatus: number | null
+  can: (permission: AppPermission) => boolean
+  hasAccessRole: (role: AccessRole) => boolean
+  canAccessCompanyAdmin: () => boolean
+  canAccessBlogAdmin: () => boolean
+  canEditOwnProfessionalProfile: () => boolean
+  login: (input: LoginInput) => Promise<AuthSession>
   registerCompany: (input: RegisterCompanyInput) => Promise<void>
   updateCompanyProfile: (input: UpdateCompanyInput) => Promise<void>
   logout: () => void
@@ -24,55 +54,199 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-function readStoredCompany(): Company | null {
-  const stored = readStorageValue(COMPANY_STORAGE_KEY, LEGACY_COMPANY_STORAGE_KEY)
+function parseStoredValue<T>(storageKey: string, legacyStorageKey: string): T | null {
+  const stored = readStorageValue(storageKey, legacyStorageKey)
   if (!stored) return null
 
   try {
-    return JSON.parse(stored) as Company
+    return JSON.parse(stored) as T
   } catch {
+    removeStorageValue(storageKey, legacyStorageKey)
+    return null
+  }
+}
+
+function isAuthUser(user: AuthUser | null | undefined): user is AuthUser {
+  return Boolean(
+    user &&
+      typeof user.id === 'string' &&
+      typeof user.name === 'string' &&
+      typeof user.email === 'string' &&
+      user.accessRole &&
+      ACCESS_ROLES.has(user.accessRole) &&
+      Array.isArray(user.permissions) &&
+      user.permissions.every((permission) => typeof permission === 'string'),
+  )
+}
+
+function readStoredSession(): AuthSession | null {
+  const token = readStorageValue(TOKEN_STORAGE_KEY, LEGACY_TOKEN_STORAGE_KEY)
+  if (!token) return null
+
+  const company = parseStoredValue<Company>(COMPANY_STORAGE_KEY, LEGACY_COMPANY_STORAGE_KEY)
+  const user = parseStoredValue<AuthUser>(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
+
+  if (isAuthUser(user)) {
+    return { kind: 'NEW_AUTH_SESSION', token, user, company }
+  }
+
+  removeStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
+  if (company) {
+    return { kind: 'LEGACY_COMPANY_SESSION', token, user: null, company }
+  }
+
+  removeStorageValue(TOKEN_STORAGE_KEY, LEGACY_TOKEN_STORAGE_KEY)
+  return null
+}
+
+function persistSession(session: AuthSession) {
+  localStorage.setItem(TOKEN_STORAGE_KEY, session.token)
+
+  if (session.company) {
+    localStorage.setItem(COMPANY_STORAGE_KEY, JSON.stringify(session.company))
+  } else {
     removeStorageValue(COMPANY_STORAGE_KEY, LEGACY_COMPANY_STORAGE_KEY)
-    return null
   }
-}
 
-function readStoredUser(): User | null {
-  const stored = readStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
-  if (!stored) return null
-
-  try {
-    return JSON.parse(stored) as User
-  } catch {
+  if (session.kind === 'NEW_AUTH_SESSION') {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(session.user))
+  } else {
     removeStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
-    return null
   }
+
+  localStorage.removeItem(LEGACY_TOKEN_STORAGE_KEY)
+  localStorage.removeItem(LEGACY_COMPANY_STORAGE_KEY)
+  localStorage.removeItem(LEGACY_USER_STORAGE_KEY)
 }
 
-function getAdminHomePath(user: User | null) {
-  return user?.role === 'agent' ? '/admin/corretor' : '/admin/dashboard'
+function clearStoredSession() {
+  removeStorageValue(TOKEN_STORAGE_KEY, LEGACY_TOKEN_STORAGE_KEY)
+  removeStorageValue(COMPANY_STORAGE_KEY, LEGACY_COMPANY_STORAGE_KEY)
+  removeStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
+}
+
+function createSessionFromLogin(data: LoginData): AuthSession {
+  if (typeof data.token !== 'string' || !data.token.trim()) {
+    throw new ApiError('A resposta de autenticação não possui um token válido.', 502)
+  }
+
+  if (data.user) {
+    if (!isAuthUser(data.user)) {
+      throw new ApiError('A resposta de autenticação não possui um usuário válido.', 502)
+    }
+
+    return {
+      kind: 'NEW_AUTH_SESSION',
+      token: data.token,
+      user: data.user,
+      company: data.company ?? null,
+    }
+  }
+
+  if (data.company) {
+    return {
+      kind: 'LEGACY_COMPANY_SESSION',
+      token: data.token,
+      user: null,
+      company: data.company,
+    }
+  }
+
+  throw new ApiError('A resposta de autenticação não possui uma sessão válida.', 502)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState(() => readStorageValue(TOKEN_STORAGE_KEY, LEGACY_TOKEN_STORAGE_KEY))
-  const [company, setCompany] = useState<Company | null>(() => readStoredCompany())
-  const [user, setUser] = useState<User | null>(() => readStoredUser())
+  const [session, setSession] = useState<AuthSession | null>(() => readStoredSession())
+  const [isAuthLoading, setIsAuthLoading] = useState(() => Boolean(session))
+  const [authErrorStatus, setAuthErrorStatus] = useState<number | null>(null)
+
+  const clearSession = useCallback(() => {
+    clearStoredSession()
+    setSession(null)
+    setAuthErrorStatus(null)
+    setIsAuthLoading(false)
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, clearSession)
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, clearSession)
+  }, [clearSession])
+
+  useEffect(() => {
+    if (!session) {
+      setIsAuthLoading(false)
+      return
+    }
+
+    let active = true
+    setIsAuthLoading(true)
+    setAuthErrorStatus(null)
+
+    void authApi
+      .me(session.token)
+      .then((data) => {
+        if (!active) return
+        if (!isAuthUser(data.user)) {
+          throw new ApiError('A resposta de /auth/me não possui um usuário válido.', 502)
+        }
+
+        const validatedCompany = data.company && session.company?.id === data.company.id
+          ? { ...session.company, ...data.company }
+          : data.company ?? null
+        const validatedSession: AuthSession = {
+          kind: 'NEW_AUTH_SESSION',
+          token: session.token,
+          user: data.user,
+          // /auth/me currently returns a compact company DTO. Preserve fields
+          // already obtained from a real company update for the same tenant.
+          company: validatedCompany,
+        }
+        persistSession(validatedSession)
+        setSession(validatedSession)
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+
+        if (error instanceof ApiError && error.status === 401) {
+          clearSession()
+          return
+        }
+
+        if (
+          error instanceof ApiError &&
+          [404, 405].includes(error.status) &&
+          session.kind === 'LEGACY_COMPANY_SESSION'
+        ) {
+          setAuthErrorStatus(null)
+          return
+        }
+
+        setAuthErrorStatus(error instanceof ApiError ? error.status : 0)
+      })
+      .finally(() => {
+        if (active) setIsAuthLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [clearSession, session?.token])
 
   async function login(input: LoginInput) {
-    const data = await authApi.login(input)
-    localStorage.setItem(TOKEN_STORAGE_KEY, data.token)
-    localStorage.setItem(COMPANY_STORAGE_KEY, JSON.stringify(data.company))
-    if (data.user) {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user))
-    } else {
-      removeStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
-    }
-    setToken(data.token)
-    setCompany(data.company)
-    setUser(data.user ?? null)
-    return data
+    const data = await authApi.login({ email: input.email.trim(), password: input.password })
+    const nextSession = createSessionFromLogin(data)
+    persistSession(nextSession)
+    setAuthErrorStatus(null)
+    setIsAuthLoading(true)
+    setSession(nextSession)
+    return nextSession
   }
 
   async function registerCompany(input: RegisterCompanyInput) {
+    if (!featureFlags.PUBLIC_REGISTRATION) {
+      throw new ApiError('O cadastro público está temporariamente indisponível.', 503)
+    }
+
     try {
       await authApi.register(input)
     } catch (error) {
@@ -89,9 +263,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    await login({ email: input.email, password: input.password })
+    const loginSession = await login({ email: input.email, password: input.password })
 
-    await updateCompanyProfile({
+    const updatedCompany = await companyApi.update(loginSession.token, {
       brandImageUrl: input.brandImageUrl,
       logoUrl: input.logoUrl ?? input.brandImageUrl,
       headquartersStreet: input.headquartersStreet,
@@ -103,53 +277,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       headquartersPostalCode: input.headquartersPostalCode,
       headquartersAddress: input.headquartersAddress,
     })
+    const updatedSession: AuthSession = { ...loginSession, company: updatedCompany }
+    persistSession(updatedSession)
+    setSession(updatedSession)
   }
 
   async function updateCompanyProfile(input: UpdateCompanyInput) {
-    const currentCompany = company ?? readStoredCompany()
-    if (!currentCompany) return
-
-    let nextCompany: Company = {
-      ...currentCompany,
-      ...input,
-      updatedAt: new Date().toISOString(),
+    const currentCompany = session?.company
+    if (!session || !currentCompany) {
+      throw new ApiError('Não foi possível identificar a imobiliária desta conta.', 409)
     }
 
-    if (token) {
-      try {
-        nextCompany = await companyApi.update(token, input)
-      } catch (error) {
-        if (!(error instanceof ApiError) || ![404, 405, 501].includes(error.status)) {
-          throw error
-        }
-      }
-    }
-
-    localStorage.setItem(COMPANY_STORAGE_KEY, JSON.stringify(nextCompany))
-    setCompany(nextCompany)
+    const nextCompany = await companyApi.update(session.token, input)
+    const nextSession: AuthSession = { ...session, company: nextCompany }
+    persistSession(nextSession)
+    setSession(nextSession)
   }
 
-  function logout() {
-    removeStorageValue(TOKEN_STORAGE_KEY, LEGACY_TOKEN_STORAGE_KEY)
-    removeStorageValue(COMPANY_STORAGE_KEY, LEGACY_COMPANY_STORAGE_KEY)
-    removeStorageValue(USER_STORAGE_KEY, LEGACY_USER_STORAGE_KEY)
-    setToken(null)
-    setCompany(null)
-    setUser(null)
-  }
+  const user = session?.kind === 'NEW_AUTH_SESSION' ? session.user : null
+  const company = session?.company ?? null
 
   return (
     <AuthContext.Provider
       value={{
-        token,
+        session,
+        sessionKind: session?.kind ?? null,
+        token: session?.token ?? null,
         company,
         user,
-        adminHomePath: getAdminHomePath(user),
+        adminHomePath: getPostLoginDestination(session),
         login,
         registerCompany,
         updateCompanyProfile,
-        logout,
-        isAuthenticated: Boolean(token),
+        logout: clearSession,
+        isAuthenticated: Boolean(session),
+        isAuthLoading,
+        authErrorStatus,
+        can: (permission) => canSession(session, permission),
+        hasAccessRole: (role) => sessionHasAccessRole(session, role),
+        canAccessCompanyAdmin: () => canAccessCompanyAdminForSession(session),
+        canAccessBlogAdmin: () => canAccessBlogAdminForSession(session),
+        canEditOwnProfessionalProfile: () => canEditOwnProfessionalProfileForSession(session),
       }}
     >
       {children}

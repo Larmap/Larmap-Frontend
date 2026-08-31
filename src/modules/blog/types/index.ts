@@ -1,6 +1,17 @@
-export type BlogStatus = 'draft' | 'scheduled' | 'published'
+import type { JSONContent } from '@tiptap/core'
+
+export type BlogStatus = 'draft' | 'scheduled' | 'published' | 'archived'
 
 export type MediaFileType = 'image' | 'video' | 'pdf'
+
+/** Documento persistido pelo backend e produzido pelo editor Tiptap. */
+export type TiptapDocument = JSONContent & {
+  type: 'doc'
+  content: JSONContent[]
+}
+
+/** Compatibilidade temporária com os mocks HTML durante o cutover. */
+export type BlogContent = TiptapDocument | string | null
 
 export interface BlogCategory {
   color: string
@@ -15,7 +26,10 @@ export interface BlogAuthor {
   avatarUrl: string
   bio: string
   id: string
+  instagram?: string | null
+  linkedin?: string | null
   name: string
+  publicEmail?: string | null
   role: string
 }
 
@@ -39,9 +53,10 @@ export interface MediaFile {
 export interface BlogPost {
   author: BlogAuthor
   category: BlogCategory
-  content: string
+  content: BlogContent
   coverImage: MediaFile
   createdAt: string
+  featured?: boolean
   id: string
   publishedAt?: string
   readingTimeMinutes: number
@@ -57,6 +72,7 @@ export interface BlogPost {
 export interface BlogPostFilters {
   categorySlug?: string
   excludeSlug?: string
+  featured?: boolean
   limit?: number
   query?: string
   status?: BlogStatus
@@ -65,7 +81,7 @@ export interface BlogPostFilters {
 export interface BlogPostInput {
   authorId: string
   categoryId: string
-  content: string
+  content: TiptapDocument
   coverImageId?: string
   coverImageUrl?: string
   publishedAt?: string
@@ -89,7 +105,7 @@ export interface BlogDashboardMetrics {
 export interface BlogPostFormValues {
   authorId: string
   categoryId: string
-  content: string
+  content: BlogContent
   coverImageId: string
   coverImageUrl: string
   publishDate: string

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { blogService } from '../services/blog.service'
+import { publicBlogService } from '../services/publicBlog.service'
 import type { BlogPost, BlogPostFilters } from '../types'
 
 export function useBlogPosts(filters: BlogPostFilters = {}) {
@@ -9,6 +9,7 @@ export function useBlogPosts(filters: BlogPostFilters = {}) {
 
   const categorySlug = filters.categorySlug
   const excludeSlug = filters.excludeSlug
+  const featured = filters.featured
   const limit = filters.limit
   const query = filters.query
   const status = filters.status
@@ -18,14 +19,14 @@ export function useBlogPosts(filters: BlogPostFilters = {}) {
     setError('')
 
     try {
-      const nextPosts = await blogService.getPosts({ categorySlug, excludeSlug, limit, query, status })
+      const nextPosts = await publicBlogService.getPosts({ categorySlug, excludeSlug, featured, limit, query, status })
       setPosts(nextPosts)
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Não foi possível carregar as postagens.')
     } finally {
       setLoading(false)
     }
-  }, [categorySlug, excludeSlug, limit, query, status])
+  }, [categorySlug, excludeSlug, featured, limit, query, status])
 
   useEffect(() => {
     let active = true
@@ -35,7 +36,7 @@ export function useBlogPosts(filters: BlogPostFilters = {}) {
       setError('')
 
       try {
-        const nextPosts = await blogService.getPosts({ categorySlug, excludeSlug, limit, query, status })
+        const nextPosts = await publicBlogService.getPosts({ categorySlug, excludeSlug, featured, limit, query, status })
         if (active) setPosts(nextPosts)
       } catch (caughtError) {
         if (active) {
@@ -51,7 +52,7 @@ export function useBlogPosts(filters: BlogPostFilters = {}) {
     return () => {
       active = false
     }
-  }, [categorySlug, excludeSlug, limit, query, status])
+  }, [categorySlug, excludeSlug, featured, limit, query, status])
 
   return { error, loading, posts, reload }
 }

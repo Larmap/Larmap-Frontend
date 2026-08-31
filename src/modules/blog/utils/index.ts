@@ -1,4 +1,5 @@
-import type { BlogPost, BlogStatus } from '../types'
+import type { BlogContent, BlogPost, BlogStatus } from '../types'
+import { getBlogContentText } from './content'
 
 export function createBlogSlug(value: string) {
   return value
@@ -9,17 +10,15 @@ export function createBlogSlug(value: string) {
     .replace(/^-+|-+$/g, '')
 }
 
-export function stripHtml(value: string) {
-  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-}
-
-export function calculateReadingTime(content: string) {
-  const words = stripHtml(content).split(/\s+/).filter(Boolean)
+export function calculateReadingTime(content: BlogContent) {
+  const words = getBlogContentText(content).split(/\s+/).filter(Boolean)
   return Math.max(1, Math.ceil(words.length / 220))
 }
 
 export function formatBlogDate(value?: string) {
   if (!value) return 'Sem data'
+
+  if (!Number.isFinite(Date.parse(value))) return 'Sem data'
 
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { propertiesApi } from '../api/client'
 import { PublicNavbar } from '../components/PublicNavbar'
 import { StatusBadge } from '../components/StatusBadge'
+import { useAuth } from '../context/AuthContext'
 import { getFavorites, removeFavorite, type FavoriteItem } from '../hooks/useFavorites'
 import type { Property } from '../types/api'
 
@@ -40,8 +41,13 @@ function toFavoriteItem(property: Property, fallback?: FavoriteItem): FavoriteIt
 }
 
 export function FavoritesPage() {
-  const [favorites, setFavorites] = useState<FavoriteItem[]>(() => getFavorites())
+  const { user } = useAuth()
+  const [favorites, setFavorites] = useState<FavoriteItem[]>([])
   const [properties, setProperties] = useState<Property[]>([])
+
+  useEffect(() => {
+    setFavorites(user ? getFavorites(user.id) : [])
+  }, [user])
 
   useEffect(() => {
     let ignore = false
@@ -71,7 +77,8 @@ export function FavoritesPage() {
   }, [favorites, properties])
 
   function handleRemove(id: string) {
-    setFavorites(removeFavorite(id))
+    if (!user) return
+    setFavorites(removeFavorite(id, user.id))
   }
 
   return (
@@ -82,6 +89,7 @@ export function FavoritesPage() {
         <div className="favorites-heading">
           <span className="eyebrow">Favoritos</span>
           <h1>Imóveis salvos</h1>
+          <p>Seus favoritos atuais estão associados a esta conta neste dispositivo.</p>
         </div>
 
         {items.length ? (

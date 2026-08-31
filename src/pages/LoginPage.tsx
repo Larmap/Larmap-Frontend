@@ -1,8 +1,10 @@
-import { ArrowRight, Building2 } from 'lucide-react'
+import { ArrowRight, UserRound } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { getErrorMessage } from '../api/errors'
+import { canAccessPath, getPostLoginDestination } from '../auth/authorization'
 import { BrandLogo } from '../components/BrandLogo'
+import { featureFlags } from '../config/features'
 import { useAuth } from '../context/AuthContext'
 
 interface RouteState {
@@ -27,8 +29,12 @@ export function LoginPage() {
     setError('')
 
     try {
-      await login({ email, password })
-      navigate(routeState?.from?.pathname ?? '/app', { replace: true })
+      const session = await login({ email, password })
+      const requestedPath = routeState?.from?.pathname
+      const destination = requestedPath && canAccessPath(session, requestedPath)
+        ? requestedPath
+        : getPostLoginDestination(session)
+      navigate(destination, { replace: true })
     } catch (caughtError) {
       setError(getErrorMessage(caughtError))
     } finally {
@@ -42,11 +48,10 @@ export function LoginPage() {
         <BrandLogo className="brand--auth" to="/" />
 
         <div className="auth-copy">
-          <span className="eyebrow">Acesso da imobiliária</span>
-          <h1>Mapa operacional para imóveis, equipe e atendimento.</h1>
+          <span className="eyebrow">Sua conta LarMap</span>
+          <h1>Seus imóveis e conteúdos preferidos em um só lugar.</h1>
           <p>
-            Entre com a conta da empresa para gerenciar usuários e cadastrar
-            imóveis geolocalizados.
+            Entre na sua conta pessoal para continuar pesquisando e acessar o que você salvou.
           </p>
         </div>
       </section>
@@ -55,7 +60,7 @@ export function LoginPage() {
         <form className="auth-form" onSubmit={handleSubmit}>
           <div>
             <span className="form-kicker">
-              <Building2 size={17} />
+              <UserRound size={17} />
               Login
             </span>
             <h2>Entrar no LarMap</h2>
@@ -67,7 +72,7 @@ export function LoginPage() {
               autoComplete="email"
               inputMode="email"
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="admin@imobiliaria.com"
+              placeholder="voce@email.com"
               required
               type="email"
               value={email}
@@ -94,9 +99,11 @@ export function LoginPage() {
             <ArrowRight size={18} />
           </button>
 
-          <p className="auth-switch">
-            Ainda não tem empresa cadastrada? <Link to="/register">Criar conta</Link>
-          </p>
+          {featureFlags.PUBLIC_REGISTRATION ? (
+            <p className="auth-switch">
+              Ainda não tem conta? <Link to="/register">Criar conta</Link>
+            </p>
+          ) : null}
         </form>
       </section>
     </main>

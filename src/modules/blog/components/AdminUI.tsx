@@ -65,6 +65,7 @@ export function StatusIndicator({ status }: { status: BlogStatus }) {
     draft: 'Rascunho',
     published: 'Publicado',
     scheduled: 'Agendado',
+    archived: 'Arquivado',
   }
 
   return (
