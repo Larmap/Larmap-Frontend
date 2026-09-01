@@ -1,0 +1,170 @@
+{
+  "browserErrors": [],
+  "dashboardError": {
+    "message": "Alguns dados não foram atualizados.Não foi possível carregar o desempenho dos imóveis.Tentar novamente",
+    "retryCleared": true,
+    "initialPropertiesFailure": {
+      "metric": "—",
+      "unavailableState": true
+    }
+  },
+  "fileUpload": {
+    "pngHorizontal": {
+      "naturalHeight": 160,
+      "naturalWidth": 720,
+      "objectFit": "contain"
+    },
+    "jpegVertical": {
+      "naturalHeight": 720,
+      "naturalWidth": 180,
+      "objectFit": "contain"
+    },
+    "invalid": "Formato não suportado. Envie uma imagem PNG, JPG ou JPEG.",
+    "tooLarge": "A imagem deve ter no máximo 5 MB.",
+    "blockedWithoutApi": "O envio do arquivo ainda depende da API de logo da imobiliária. Use uma URL para salvar a imagem agora."
+  },
+  "layout": [
+    {
+      "viewport": "1366x768",
+      "horizontalOverflow": false,
+      "scrollWidth": 1366,
+      "clientWidth": 1366,
+      "contentStartsAfterHeader": true,
+      "sidebarHasWordmark": false,
+      "sidebarLogo": {
+        "height": 50,
+        "width": 43
+      },
+      "headerHeight": 64,
+      "sidebarPosition": "sticky",
+      "unlabeledIconButtons": 0
+    },
+    {
+      "viewport": "1440x900",
+      "horizontalOverflow": false,
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "contentStartsAfterHeader": true,
+      "sidebarHasWordmark": false,
+      "sidebarLogo": {
+        "height": 50,
+        "width": 43
+      },
+      "headerHeight": 64,
+      "sidebarPosition": "sticky",
+      "unlabeledIconButtons": 0
+    },
+    {
+      "viewport": "1920x1080",
+      "horizontalOverflow": false,
+      "scrollWidth": 1920,
+      "clientWidth": 1920,
+      "contentStartsAfterHeader": true,
+      "sidebarHasWordmark": false,
+      "sidebarLogo": {
+        "height": 50,
+        "width": 43
+      },
+      "headerHeight": 64,
+      "sidebarPosition": "sticky",
+      "unlabeledIconButtons": 0
+    },
+    {
+      "viewport": "768x1024",
+      "horizontalOverflow": false,
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "contentStartsAfterHeader": true,
+      "sidebarHasWordmark": false,
+      "sidebarLogo": {
+        "height": 50,
+        "width": 43
+      },
+      "headerHeight": 64,
+      "sidebarPosition": "fixed",
+      "unlabeledIconButtons": 0
+    },
+    {
+      "viewport": "390x844",
+      "horizontalOverflow": false,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "contentStartsAfterHeader": true,
+      "sidebarHasWordmark": false,
+      "sidebarLogo": {
+        "height": 50,
+        "width": 43
+      },
+      "headerHeight": 64,
+      "sidebarPosition": "fixed",
+      "unlabeledIconButtons": 0
+    },
+    {
+      "viewport": "settings 390x844",
+      "horizontalOverflow": false,
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "contentStartsAfterHeader": true,
+      "sidebarHasWordmark": false,
+      "sidebarLogo": {
+        "height": 50,
+        "width": 43
+      },
+      "headerHeight": 64,
+      "sidebarPosition": "fixed",
+      "unlabeledIconButtons": 0
+    }
+  ],
+  "login": {
+    "invalid": "E-mail ou senha incorretos.",
+    "validDestination": "/admin/dashboard",
+    "network": "Não foi possível conectar ao LarMap. Verifique sua conexão e tente novamente."
+  },
+  "menus": {
+    "account": [
+      "Minha imobiliária",
+      "Conta",
+      "Sair"
+    ],
+    "notifications": {
+      "dialog": "dialog",
+      "items": 1
+    }
+  },
+  "settings": {
+    "mobileDrawer": {
+      "expanded": "true",
+      "dialog": "dialog"
+    },
+    "closedDrawer": {
+      "visibility": "hidden",
+      "firstLinkVisibility": "hidden"
+    },
+    "fileToUrlAllowsSave": "Dados da imobiliária atualizados.",
+    "urlSave": "Dados e identidade visual atualizados.",
+    "logoRemovalFeedback": "Logo removido.",
+    "logoRemoved": {
+      "preview": false,
+      "headerUsesFallback": true
+    },
+    "compactProfile": {
+      "patchKeys": [
+        "name"
+      ],
+      "preservedBackendEmail": true,
+      "safetyNote": "Alguns dados salvos não estão disponíveis nesta sessão. Somente os campos alterados serão enviados."
+    }
+  },
+  "screenshots": [
+    "login-1366x768.png",
+    "dashboard-1366x768.png",
+    "dashboard-1440x900.png",
+    "dashboard-1920x1080.png",
+    "dashboard-tablet-768x1024.png",
+    "dashboard-mobile-390x844.png",
+    "dashboard-mobile-drawer-390x844.png",
+    "settings-1440x900.png",
+    "settings-mobile-390x844.png"
+  ],
+  "browserErrorsBeforeExpectedNetworkFailure": []
+}

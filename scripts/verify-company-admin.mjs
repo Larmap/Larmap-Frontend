@@ -205,7 +205,15 @@ const vite = spawn(
   ['./node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(frontendPort), '--strictPort'],
   {
     cwd: projectRoot,
-    env: { ...process.env, VITE_API_URL: apiBaseUrl },
+    // The verification exercises the optional dashboard integrations below.
+    // Keep those contracts enabled here without changing the production
+    // defaults used by the application.
+    env: {
+      ...process.env,
+      VITE_API_URL: apiBaseUrl,
+      VITE_FEATURE_NEGOTIATIONS_API: 'true',
+      VITE_FEATURE_PERFORMANCE_API: 'true',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   },
