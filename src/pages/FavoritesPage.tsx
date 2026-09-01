@@ -54,7 +54,7 @@ export function FavoritesPage() {
 
     async function loadProperties() {
       try {
-        const data = await propertiesApi.list()
+        const data = await propertiesApi.listPublic()
         if (!ignore) setProperties(data)
       } catch {
         if (!ignore) setProperties([])

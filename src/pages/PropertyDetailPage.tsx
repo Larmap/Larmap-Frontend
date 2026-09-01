@@ -40,8 +40,6 @@ import {
   getPropertySlug,
   getPropertyTypeLabel,
   getTransactionLabel,
-  mergePropertyLists,
-  readLocalAdminProperties,
 } from '../utils/properties'
 
 const DETAIL_POI_RADIUS_KM = 4
@@ -409,17 +407,14 @@ export function PropertyDetailPage() {
       setLoadError('')
 
       try {
-        const data = await propertiesApi.list()
+        const data = await propertiesApi.listPublic()
         if (!ignore) {
-          setProperties(mergePropertyLists(data, readLocalAdminProperties()))
+          setProperties(data)
         }
       } catch {
         if (!ignore) {
-          const localProperties = readLocalAdminProperties()
-          setProperties(localProperties)
-          if (!localProperties.length) {
-            setLoadError('Não foi possível carregar os imóveis agora.')
-          }
+          setProperties([])
+          setLoadError('Não foi possível carregar os imóveis agora.')
         }
       } finally {
         if (!ignore) setLoading(false)

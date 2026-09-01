@@ -19,12 +19,9 @@ import { LarMapExplainSection } from '../modules/blog/components/LarMapExplainSe
 import { publicBlogService } from '../modules/blog/services/publicBlog.service'
 import type { BlogPost } from '../modules/blog/types'
 import type { Property } from '../types/api'
-import { readStorageValue } from '../utils/storage'
 
 const homeMapCenter: [number, number] = [-22.9068, -43.1729]
 const HOME_POI_CATEGORIES = allPoiCategories
-const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
-const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
 const HOME_LOCATION_STORAGE_KEY = 'larmap.home.lastLocation'
 const HOME_GEOLOCATION_TIMEOUT_MS = 3000
 const HOME_NEARBY_CAROUSEL_LIMIT = 12
@@ -41,25 +38,6 @@ const previewDots = [
   { center: [-22.8960, -43.1800] as [number, number], color: '#57b44b' },
   { center: [-22.9300, -43.2400] as [number, number], color: '#cc4b4b' },
 ]
-
-function readLocalAdminProperties() {
-  try {
-    const raw = readStorageValue(LOCAL_ADMIN_PROPERTIES_KEY, LEGACY_LOCAL_ADMIN_PROPERTIES_KEY)
-    if (!raw) return []
-    return JSON.parse(raw) as Property[]
-  } catch {
-    return []
-  }
-}
-
-function mergePropertyLists(remoteProperties: Property[], localProperties: Property[]) {
-  const byId = new Map<string, Property>()
-
-  localProperties.forEach((property) => byId.set(property.id, property))
-  remoteProperties.forEach((property) => byId.set(property.id, property))
-
-  return Array.from(byId.values())
-}
 
 function getPropertyCity(property: Property) {
   return property.city || property.cidade || ''
@@ -266,10 +244,10 @@ export function HomePage() {
     let ignore = false
     async function load() {
       try {
-        const data = await propertiesApi.list()
-        if (!ignore) setProperties(mergePropertyLists(data, readLocalAdminProperties()))
+        const data = await propertiesApi.listPublic()
+        if (!ignore) setProperties(data)
       } catch {
-        if (!ignore) setProperties(readLocalAdminProperties())
+        if (!ignore) setProperties([])
       } finally {
         if (!ignore) setPropertiesLoading(false)
       }

@@ -163,6 +163,12 @@ async function requestFirstAvailableProperties(token?: string | null) {
   return normalizePropertyList(payload)
 }
 
+/** Public listings must never inherit an administrative token or endpoint. */
+async function requestPublicProperties() {
+  const payload = await request<unknown>(PUBLIC_PROPERTY_ENDPOINTS[0])
+  return normalizePropertyList(payload)
+}
+
 async function requestFirstAvailableProfessional(slug: string) {
   let lastError: unknown
   const encodedSlug = encodeURIComponent(slug)
@@ -237,6 +243,7 @@ export const usersApi = {
 
 export const propertiesApi = {
   list: (token?: string | null) => requestFirstAvailableProperties(token),
+  listPublic: () => requestPublicProperties(),
   create: (token: string, input: CreatePropertyInput) =>
     request<Property>('/properties', {
       method: 'POST',

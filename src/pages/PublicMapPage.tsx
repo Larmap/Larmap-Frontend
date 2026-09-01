@@ -53,15 +53,12 @@ import type { PoiCategory } from '../types/pois'
 import { canUsePublicFavorites } from '../utils/userAccess'
 import { buildLocalLead, upsertLocalLead } from '../utils/localLeads'
 import { getPropertySlug } from '../utils/properties'
-import { readStorageValue } from '../utils/storage'
 
 const defaultCoordinates = {
   latitude: -22.9068,
   longitude: -43.1729,
 }
 
-const LOCAL_ADMIN_PROPERTIES_KEY = 'larmap.admin.localProperties'
-const LEGACY_LOCAL_ADMIN_PROPERTIES_KEY = 'smartmap.admin.localProperties'
 
 const defaultCenter: [number, number] = [
   defaultCoordinates.latitude,
@@ -320,25 +317,6 @@ function getPropertyType(property: Property, searchableText: string): PropertyTy
   if (/\b(apartamento|apto|flat|studio|loft)\b/.test(text)) return 'apartamento'
 
   return null
-}
-
-function readLocalAdminProperties() {
-  try {
-    const raw = readStorageValue(LOCAL_ADMIN_PROPERTIES_KEY, LEGACY_LOCAL_ADMIN_PROPERTIES_KEY)
-    if (!raw) return []
-    return JSON.parse(raw) as Property[]
-  } catch {
-    return []
-  }
-}
-
-function mergePropertyLists(remoteProperties: Property[], localProperties: Property[]) {
-  const byId = new Map<string, Property>()
-
-  localProperties.forEach((property) => byId.set(property.id, property))
-  remoteProperties.forEach((property) => byId.set(property.id, property))
-
-  return Array.from(byId.values())
 }
 
 function getBedrooms(property: Property, searchableText: string) {
@@ -898,13 +876,13 @@ export function PublicMapPage() {
       setLoading(true)
 
       try {
-        const data = await propertiesApi.list()
+        const data = await propertiesApi.listPublic()
         if (!ignore) {
-          setProperties(mergePropertyLists(data, readLocalAdminProperties()))
+          setProperties(data)
         }
       } catch {
         if (!ignore) {
-          setProperties(readLocalAdminProperties())
+          setProperties([])
           setSelectedPropertyId('')
         }
       } finally {

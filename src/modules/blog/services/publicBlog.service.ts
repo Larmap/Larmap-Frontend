@@ -8,11 +8,11 @@ import { blogService } from './blog.service'
 /**
  * Transitional public-blog adapter.
  *
- * The public API is queried with its temporary maximum before applying local
- * filters. That lets API posts and the eight legacy posts share one stable
- * result set without duplicate posts across client-side filters/pages. Remove
- * this workaround once all legacy posts are persisted and server pagination is
- * the canonical public contract.
+ * When PUBLIC_BLOG_API is enabled, the public API is queried with its
+ * temporary maximum before applying local filters. That lets API posts and
+ * the eight legacy posts share one stable result set without duplicate posts
+ * across client-side filters/pages. Remove this workaround once all legacy
+ * posts are persisted and server pagination is the canonical public contract.
  */
 export const PUBLIC_BLOG_API_LIMIT = 50
 
@@ -113,11 +113,13 @@ export const publicBlogService = {
   async getPosts(filters: BlogPostFilters = {}) {
     let apiPosts: BlogPost[] = []
 
-    try {
-      apiPosts = await fetchPublicApiPosts()
-    } catch (error) {
-      if (!featureFlags.BLOG_LEGACY_MOCKS) throw error
-      reportPublicApiDiagnostic('post listing', error)
+    if (featureFlags.PUBLIC_BLOG_API) {
+      try {
+        apiPosts = await fetchPublicApiPosts()
+      } catch (error) {
+        if (!featureFlags.BLOG_LEGACY_MOCKS) throw error
+        reportPublicApiDiagnostic('post listing', error)
+      }
     }
 
     const legacyPosts = featureFlags.BLOG_LEGACY_MOCKS ? blogPostsMock : []
@@ -125,38 +127,52 @@ export const publicBlogService = {
   },
 
   async getPost(slug: string) {
-    try {
-      return await blogService.getPost(slug)
-    } catch (error) {
+    if (featureFlags.PUBLIC_BLOG_API) {
+      try {
+        return await blogService.getPost(slug)
+      } catch (error) {
+        const legacyPost = featureFlags.BLOG_LEGACY_MOCKS
+          ? blogPostsMock.find((post) => slugKey(post.slug) === slugKey(slug)) ?? null
+          : null
+
+        if (legacyPost) {
+          reportPublicApiDiagnostic(`post detail for "${slug}"`, error)
+          return legacyPost
+        }
+
+        throw error
+      }
+    }
+
+    if (featureFlags.BLOG_LEGACY_MOCKS) {
       const legacyPost = featureFlags.BLOG_LEGACY_MOCKS
         ? blogPostsMock.find((post) => slugKey(post.slug) === slugKey(slug)) ?? null
         : null
-
-      if (legacyPost) {
-        reportPublicApiDiagnostic(`post detail for "${slug}"`, error)
-        return legacyPost
-      }
-
-      throw error
+      if (legacyPost) return legacyPost
     }
+
+    throw new Error('Conteúdo do blog indisponível.')
   },
 
   async getCategories() {
-    const [postsResult, categoriesResult] = await Promise.allSettled([
-      this.getPosts({ status: 'published' }),
-      blogService.getCategories(),
-    ])
+    const postsResult = await Promise.allSettled([this.getPosts({ status: 'published' })])
+    const categoriesResult = featureFlags.PUBLIC_BLOG_API
+      ? await Promise.allSettled([blogService.getCategories()])
+      : [{ status: 'fulfilled', value: [] as BlogCategory[] }] as const
 
-    if (postsResult.status === 'rejected' && !featureFlags.BLOG_LEGACY_MOCKS) {
-      throw postsResult.reason
+    const postsRequest = postsResult[0]
+    const categoriesRequest = categoriesResult[0]
+
+    if (postsRequest.status === 'rejected' && !featureFlags.BLOG_LEGACY_MOCKS) {
+      throw postsRequest.reason
     }
 
-    const posts = postsResult.status === 'fulfilled' ? postsResult.value : []
-    const apiCategories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : []
+    const posts = postsRequest.status === 'fulfilled' ? postsRequest.value : []
+    const apiCategories = categoriesRequest.status === 'fulfilled' ? categoriesRequest.value : []
 
-    if (categoriesResult.status === 'rejected') {
-      if (!featureFlags.BLOG_LEGACY_MOCKS && !posts.length) throw categoriesResult.reason
-      reportPublicApiDiagnostic('category listing', categoriesResult.reason)
+    if (categoriesRequest.status === 'rejected') {
+      if (!featureFlags.BLOG_LEGACY_MOCKS && !posts.length) throw categoriesRequest.reason
+      reportPublicApiDiagnostic('category listing', categoriesRequest.reason)
     }
 
     return mergeWithLegacyCategories(

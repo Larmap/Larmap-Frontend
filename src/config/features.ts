@@ -13,6 +13,10 @@ export type FeatureFlagName =
   | 'PROFESSIONAL_SELF_PROFILE'
   | 'PUBLIC_COMPANY_PROFILE'
   | 'BLOG_LEGACY_MOCKS'
+  | 'PUBLIC_BLOG_API'
+  | 'NEW_AUTH_API'
+  | 'PERFORMANCE_API'
+  | 'NEGOTIATIONS_API'
 
 type FeatureFlagDefaults = Record<FeatureFlagName, boolean>
 
@@ -23,6 +27,12 @@ const productionDefaults: FeatureFlagDefaults = {
   PROFESSIONAL_SELF_PROFILE: false,
   PUBLIC_COMPANY_PROFILE: false,
   BLOG_LEGACY_MOCKS: true,
+  // The currently deployed legacy backend does not expose these contracts.
+  // Keep the implementation behind the flags for the planned cutover.
+  PUBLIC_BLOG_API: false,
+  NEW_AUTH_API: false,
+  PERFORMANCE_API: false,
+  NEGOTIATIONS_API: false,
 }
 
 function parseBoolean(value: string | undefined, fallback: boolean) {

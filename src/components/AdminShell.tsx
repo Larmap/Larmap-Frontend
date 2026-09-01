@@ -26,6 +26,7 @@ import {
 import { Link, NavLink, Outlet, useLocation, useOutletContext } from 'react-router-dom'
 import { leadsApi } from '../api/client'
 import type { AppPermission } from '../auth/authorization'
+import { featureFlags } from '../config/features'
 import { useAuth } from '../context/AuthContext'
 import { useAdminData } from '../hooks/useAdminData'
 import type { Lead } from '../types/api'
@@ -64,7 +65,25 @@ function formatLeadDate(value: string) {
 export function AdminShell() {
   const { can, company, logout, sessionKind, token, user } = useAuth()
   const location = useLocation()
-  const adminData = useAdminData(token)
+  const adminDataRequirements = useMemo(() => {
+    const pathname = location.pathname
+    const isDashboard = pathname === '/admin/dashboard'
+    const isProperties = pathname === '/admin/imoveis'
+    const isAgents = pathname === '/admin/corretores'
+    const isLeads = pathname === '/admin/leads'
+    const isPerformance = pathname === '/admin/desempenho'
+    const isBrokerDashboard = pathname === '/admin/corretor'
+
+    return {
+      agentPerformance: featureFlags.PERFORMANCE_API && (isAgents || isPerformance),
+      leads: isDashboard || isLeads || isBrokerDashboard,
+      negotiations: featureFlags.NEGOTIATIONS_API && (isDashboard || isBrokerDashboard),
+      properties: isDashboard || isProperties || isBrokerDashboard,
+      propertyPerformance: featureFlags.PERFORMANCE_API && (isDashboard || isProperties || isPerformance || isBrokerDashboard),
+      users: isDashboard || isProperties,
+    }
+  }, [location.pathname])
+  const adminData = useAdminData(can('company:manage') ? token : null, adminDataRequirements)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [companyLogoFailed, setCompanyLogoFailed] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)

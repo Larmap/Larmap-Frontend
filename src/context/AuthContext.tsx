@@ -173,7 +173,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [clearSession])
 
   useEffect(() => {
-    if (!session) {
+    // /auth/me belongs to the new authentication contract. Legacy company
+    // sessions are already represented by the persisted company DTO and the
+    // backend currently in production does not implement this endpoint.
+    if (!session || !featureFlags.NEW_AUTH_API || session.kind !== 'NEW_AUTH_SESSION') {
       setIsAuthLoading(false)
       return
     }
@@ -212,15 +215,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        if (
-          error instanceof ApiError &&
-          [404, 405].includes(error.status) &&
-          session.kind === 'LEGACY_COMPANY_SESSION'
-        ) {
-          setAuthErrorStatus(null)
-          return
-        }
-
         setAuthErrorStatus(error instanceof ApiError ? error.status : 0)
       })
       .finally(() => {
@@ -230,7 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false
     }
-  }, [clearSession, session?.token])
+  }, [clearSession, session?.kind, session?.token])
 
   async function login(input: LoginInput) {
     const data = await authApi.login({ email: input.email.trim(), password: input.password })
@@ -244,7 +238,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function registerCompany(input: RegisterCompanyInput) {
     if (!featureFlags.PUBLIC_REGISTRATION) {
-      throw new ApiError('O cadastro público está temporariamente indisponível.', 503)
+      // The route is hidden while disabled. Keep this guard harmless if an
+      // outdated caller is still mounted during a staged rollout.
+      return
     }
 
     try {

@@ -6,6 +6,7 @@ import type { Poi, PoiCategory, PoiSearchBounds, PoiSearchCenter, PoiSearchState
 const CACHE_TTL_MS = 10 * 60 * 1000
 const DEFAULT_DEBOUNCE_MS = 1200
 const COOLDOWN_MS = 3 * 60 * 1000
+const SESSION_CACHE_PREFIX = 'larmap.poi-cache:'
 
 let cooldownUntil = 0
 
@@ -31,6 +32,14 @@ interface PoiCacheEntry {
 }
 
 const poiCache = new Map<string, PoiCacheEntry>()
+
+interface InFlightPoiRequest {
+  controller: AbortController
+  promise: Promise<Poi[]>
+  subscribers: number
+}
+
+const inFlightPoiRequests = new Map<string, InFlightPoiRequest>()
 
 function roundCoordinate(value: number) {
   return value.toFixed(4)
@@ -63,26 +72,89 @@ function createCacheKey(input: UseNearbyPoisInput, categoriesKey: string) {
 
 function getCachedPois(cacheKey: string, boundsKey?: string) {
   const cached = poiCache.get(cacheKey)
-  if (!cached) return null
-
-  if (cached.expiresAt <= Date.now()) {
-    poiCache.delete(cacheKey)
-    return null
+  if (cached) {
+    if (cached.expiresAt <= Date.now()) {
+      poiCache.delete(cacheKey)
+    } else if (!boundsKey || cached.boundsKey === boundsKey) {
+      return cached.pois
+    }
   }
 
-  if (boundsKey && cached.boundsKey !== boundsKey) {
+  try {
+    const raw = window.sessionStorage.getItem(`${SESSION_CACHE_PREFIX}${cacheKey}`)
+    if (!raw) return null
+    const sessionCached = JSON.parse(raw) as PoiCacheEntry
+
+    if (
+      !Array.isArray(sessionCached.pois) ||
+      sessionCached.expiresAt <= Date.now() ||
+      (boundsKey && sessionCached.boundsKey !== boundsKey)
+    ) {
+      window.sessionStorage.removeItem(`${SESSION_CACHE_PREFIX}${cacheKey}`)
+      return null
+    }
+
+    poiCache.set(cacheKey, sessionCached)
+    return sessionCached.pois
+  } catch {
     return null
   }
-
-  return cached.pois
 }
 
 function setCachedPois(cacheKey: string, boundsKey: string, pois: Poi[]) {
-  poiCache.set(cacheKey, {
+  const entry: PoiCacheEntry = {
     boundsKey,
     expiresAt: Date.now() + CACHE_TTL_MS,
     pois,
+  }
+  poiCache.set(cacheKey, entry)
+
+  try {
+    window.sessionStorage.setItem(`${SESSION_CACHE_PREFIX}${cacheKey}`, JSON.stringify(entry))
+  } catch {
+    // Storage can be unavailable or full; the in-memory cache remains enough.
+  }
+}
+
+function acquirePoiRequest(cacheKey: string, input: UseNearbyPoisInput, searchBounds: PoiSearchBounds, center: PoiSearchCenter) {
+  const existing = inFlightPoiRequests.get(cacheKey)
+  if (existing) {
+    existing.subscribers += 1
+    return existing
+  }
+
+  const controller = new AbortController()
+  const request: InFlightPoiRequest = {
+    controller,
+    promise: Promise.resolve([]),
+    subscribers: 1,
+  }
+
+  request.promise = searchPoisByBounds(
+    {
+      bounds: searchBounds,
+      categories: [...input.categories],
+      center,
+      limit: input.limit,
+    },
+    controller.signal,
+  ).finally(() => {
+    if (inFlightPoiRequests.get(cacheKey) === request) {
+      inFlightPoiRequests.delete(cacheKey)
+    }
   })
+  inFlightPoiRequests.set(cacheKey, request)
+  return request
+}
+
+function releasePoiRequest(cacheKey: string, request: InFlightPoiRequest) {
+  if (inFlightPoiRequests.get(cacheKey) !== request) return
+
+  request.subscribers -= 1
+  if (request.subscribers <= 0) {
+    request.controller.abort()
+    inFlightPoiRequests.delete(cacheKey)
+  }
 }
 
 function isCooldownActive() {
@@ -199,7 +271,7 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
       return
     }
 
-    const abortController = new AbortController()
+    let activeRequest: InFlightPoiRequest | null = null
     const debounceMs = Math.max(input.debounceMs ?? DEFAULT_DEBOUNCE_MS, DEFAULT_DEBOUNCE_MS)
     const debounceId = window.setTimeout(() => {
       setState((current) => ({
@@ -208,15 +280,9 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
         loading: true,
       }))
 
-      searchPoisByBounds(
-        {
-          bounds: searchBounds,
-          categories: input.categories,
-          center: searchCenter,
-          limit: input.limit,
-        },
-        abortController.signal,
-      )
+      activeRequest = acquirePoiRequest(cacheKey, input, searchBounds, searchCenter)
+
+      activeRequest.promise
         .then((pois) => {
           lastResultBoundsKeyRef.current = searchBoundsKey
           setCachedPois(cacheKey, searchBoundsKey, pois)
@@ -253,8 +319,8 @@ export function useNearbyPois(input: UseNearbyPoisInput): PoiSearchState & { ref
     }, debounceMs)
 
     return () => {
-      abortController.abort()
       window.clearTimeout(debounceId)
+      if (activeRequest) releasePoiRequest(cacheKey, activeRequest)
     }
   }, [
     cacheKey,
